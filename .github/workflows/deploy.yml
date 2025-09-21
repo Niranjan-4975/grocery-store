@@ -2,7 +2,7 @@ name: Deploy Vue App to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main"]   # Deploy only when pushing to main
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,11 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      # ✅ Fix vue-tsc permission issue
+      - name: Fix vue-tsc permissions
+        run: chmod +x node_modules/.bin/vue-tsc
 
       - name: Build project
         run: npm run build
@@ -36,7 +40,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist   # 👈 Vite outputs here
+          path: ./dist   # Vite outputs here by default
 
   deploy:
     environment:
