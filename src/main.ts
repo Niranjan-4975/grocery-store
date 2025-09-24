@@ -9,6 +9,7 @@ import * as directives from 'vuetify/directives'
 import '@mdi/font/css/materialdesignicons.css'
 import '@mdi/font/css/materialdesignicons.css'
 import IconButton from "./components/common/IconButton.vue";
+import { useAuth } from './composables/useAuth';
 
 const vuetify = createVuetify({
   icons:{
@@ -18,6 +19,7 @@ const vuetify = createVuetify({
   directives,
 })
 const app = createApp(App);
+useAuth().initAuth();
 app.component('IconButton', IconButton);
 app.use(router).use(vuetify).mount('#app')
 
