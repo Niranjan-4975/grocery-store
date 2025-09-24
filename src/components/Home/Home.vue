@@ -17,13 +17,6 @@ interface Product {
   quantity?: number;
 }
 
-const total = computed(() =>
-  cart.value.reduce((acc, item) => acc + item.price * (item.quantity || 0), 0)
-);
-const totalItems = computed(() =>
-  cart.value.reduce((acc, item) => acc + (item.quantity || 0), 0)
-);
-
 // Example products (later from API)
 const products = ref<Product[]>([
   { id: 1, name: "Apples", price: 100, image: "https://www.shutterstock.com/shutterstock/photos/1727544364/display_1500/stock-photo-red-apple-isolated-on-white-background-clipping-path-full-depth-of-field-1727544364.jpg" },
