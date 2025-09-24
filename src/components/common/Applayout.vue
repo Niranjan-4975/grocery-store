@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, provide } from "vue";
-import { RouterView, useRouter } from "vue-router";
+import { RouterView } from "vue-router";
 import IconButton from "./IconButton.vue";
 import { useAuth } from "../../composables/useAuth";
 
 // Auth
-const { logout } = useAuth();
-const router = useRouter();
+const { logout, loading } = useAuth();
 
 // Responsive state
 const isMobile = ref(window.innerWidth <= 600);
@@ -18,7 +17,7 @@ onUnmounted(() => window.removeEventListener("resize", handleResize));
 
 // Drawer & cart state
 const drawer = ref(false);
-function toggleDrawer(){
+function toggleDrawer() {
   drawer.value = !drawer.value;
 }
 const cartDropdown = ref(false);
@@ -34,23 +33,31 @@ const cart = ref<Product[]>([]);
 
 // Provide cart functions to children
 provide("cart", cart);
-provide("addToCart", (product: Product) => {
+const addToCart = (product: Product) => {
   const existing = cart.value.find(p => p.id === product.id);
   if (existing) existing.quantity = (existing.quantity || 0) + 1;
   else cart.value.push({ ...product, quantity: 1 });
-});
-provide("removeFromCart", (product: Product) => {
+};
+
+const removeFromCart = (product: Product) => {
   const existing = cart.value.find(p => p.id === product.id);
   if (existing) {
     existing.quantity!--;
     if (existing.quantity === 0) cart.value = cart.value.filter(p => p.id !== product.id);
   }
   if (cart.value.length === 0) cartDropdown.value = false;
-});
-provide("removeAll", (product: Product) => {
+};
+
+const removeAll = (product: Product) => {
   cart.value = cart.value.filter(p => p.id !== product.id);
   if (cart.value.length === 0) cartDropdown.value = false;
-});
+};
+
+// Provide them for child components
+provide("addToCart", addToCart);
+provide("removeFromCart", removeFromCart);
+provide("removeAll", removeAll);
+
 
 const totalItems = computed(() =>
   cart.value.reduce((acc, item) => acc + (item.quantity || 0), 0)
@@ -77,9 +84,6 @@ function handleLogout() {
   logout();
   // router.push("/login") already handled in useAuth().logout()
 }
-
-// Loading state to prevent blank UI on refresh
-const { loading } = useAuth();
 </script>
 
 <template>
@@ -103,7 +107,7 @@ const { loading } = useAuth();
         <!-- Cart menu -->
         <v-menu v-model="cartDropdown" :close-on-content-click="false" offset-y bottom>
           <template #activator="{ props }">
-            <IconButton v-bind="props" icon="mdi-cart" :badge="totalItems" tooltip="My Cart" color="white"/>
+            <IconButton v-bind="props" icon="mdi-cart" :badge="totalItems" tooltip="My Cart" color="white" />
           </template>
           <v-card style="width: 350px;">
             <v-list>
@@ -112,16 +116,20 @@ const { loading } = useAuth();
               </v-list-item>
               <v-divider />
               <template v-if="cart.length">
-                <v-list-item v-for="item in cart" :key="item.id" class="d-flex align-center justify-space-between">
+                <v-list-item
+                  v-for="item in cart"
+                  :key="item.id"
+                  class="d-flex align-center justify-space-between"
+                >
                   <div>
                     <v-list-item-title>{{ item.name }}</v-list-item-title>
                     <v-list-item-subtitle>
-                      ₹{{ item.price }} × {{ item.quantity }} = ₹{{ item.price * item.quantity }}
+                      ₹{{ item.price }} × {{ item.quantity ?? 0 }} = ₹{{ item.price * (item.quantity ?? 0) }}
                     </v-list-item-subtitle>
                   </div>
                   <div class="d-flex align-center">
                     <IconButton icon="mdi-minus" tooltip="Remove one" color="red" @click="removeFromCart(item)" />
-                    <span class="mx-2">{{ item.quantity }}</span>
+                    <span class="mx-2">{{ item.quantity ?? 0 }}</span>
                     <IconButton icon="mdi-plus" tooltip="Add one" color="green" @click="addToCart(item)" />
                     <IconButton icon="mdi-delete" tooltip="Remove all" color="grey" @click="removeAll(item)" />
                   </div>
@@ -151,7 +159,7 @@ const { loading } = useAuth();
       <v-navigation-drawer app v-model="drawer" temporary v-if="!isMobile">
         <v-list dense>
           <v-subheader>Categories</v-subheader>
-          <v-list-item v-for="(category, i) in categories" :key="i" :title="category" prepend-icon="mdi-food-apple"/>
+          <v-list-item v-for="(category, i) in categories" :key="i" :title="category" prepend-icon="mdi-food-apple" />
         </v-list>
       </v-navigation-drawer>
 
@@ -160,9 +168,9 @@ const { loading } = useAuth();
         <v-list dense nav>
           <v-list-item to="/home" title="Home" prepend-icon="mdi-home" />
           <v-list-item to="/product" title="Products" prepend-icon="mdi-package-variant" />
-          <v-divider class="my-2"/>
+          <v-divider class="my-2" />
           <v-subheader>Categories</v-subheader>
-          <v-list-item v-for="(category, i) in categories" :key="i" :title="category" prepend-icon="mdi-food-apple"/>
+          <v-list-item v-for="(category, i) in categories" :key="i" :title="category" prepend-icon="mdi-food-apple" />
         </v-list>
       </v-navigation-drawer>
 
