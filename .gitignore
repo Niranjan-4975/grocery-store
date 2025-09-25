@@ -21,3 +21,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.chunk\deps
+# Vite cache/dependency artifacts
+.vite/
+# Build outputs
+dist/
