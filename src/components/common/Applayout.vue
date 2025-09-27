@@ -6,6 +6,16 @@ import { useAuth } from "../../composables/useAuth";
 
 // Auth
 const { logout, loading } = useAuth();
+const userName = ref("Niranjan D"); //need to replace real user name later in from auth details
+
+const userInitials = computed(()=>{
+  if(!userName.value) return null;
+  return userName.value
+    .split(" ")
+    .map(n => n[0])
+    .join("")
+    .toUpperCase();
+})
 
 // Responsive state
 const isMobile = ref(window.innerWidth <= 600);
@@ -58,7 +68,6 @@ provide("addToCart", addToCart);
 provide("removeFromCart", removeFromCart);
 provide("removeAll", removeAll);
 
-
 const totalItems = computed(() =>
   cart.value.reduce((acc, item) => acc + (item.quantity || 0), 0)
 );
@@ -73,11 +82,16 @@ const categories = [
 ];
 
 // Checkout
-function checkout() {
+/*function checkout() {
+  if (cart.value.length === 0) {
+    alert("🛒 Your cart is empty!");
+    return;
+  }
   alert(`Checkout — total ₹${total.value}`);
   cart.value = [];
   cartDropdown.value = false;
-}
+}*/
+
 
 // Logout handler
 function handleLogout() {
@@ -100,8 +114,8 @@ function handleLogout() {
 
         <!-- Desktop nav -->
         <div v-if="!isMobile">
-          <v-btn to="/home" text>Home</v-btn>
-          <v-btn to="/product" text>Products</v-btn>
+          <v-btn to="/home" text :class="{ 'active-link': $route.path === '/home' }">Home</v-btn>
+          <v-btn to="/product" text :class="{ 'active-link': $route.path === '/product' }">Products</v-btn>
         </div>
 
         <!-- Cart menu -->
@@ -128,10 +142,10 @@ function handleLogout() {
                     </v-list-item-subtitle>
                   </div>
                   <div class="d-flex align-center">
-                    <IconButton icon="mdi-minus" tooltip="Remove one" color="red" @click="removeFromCart(item)" />
+                    <IconButton icon="mdi-minus"  size="small" tooltip="Remove one" color="red" @click="removeFromCart(item)" />
                     <span class="mx-2">{{ item.quantity ?? 0 }}</span>
-                    <IconButton icon="mdi-plus" tooltip="Add one" color="green" @click="addToCart(item)" />
-                    <IconButton icon="mdi-delete" tooltip="Remove all" color="grey" @click="removeAll(item)" />
+                    <IconButton icon="mdi-plus" size="small" tooltip="Add one" color="green" @click="addToCart(item)" />
+                    <IconButton icon="mdi-delete" size="small" tooltip="Remove all" color="error" @click="removeAll(item)" />
                   </div>
                 </v-list-item>
                 <v-divider />
@@ -139,7 +153,7 @@ function handleLogout() {
                   <v-list-item-title>Total: ₹{{ total }}</v-list-item-title>
                 </v-list-item>
                 <v-list-item>
-                  <v-btn color="success" block @click="checkout">Checkout</v-btn>
+                  <v-btn color="success" block @click.stop="() => {cartDropdown = false; $router.push('/checkout');}">Checkout</v-btn>
                 </v-list-item>
               </template>
               <template v-else>
@@ -152,7 +166,31 @@ function handleLogout() {
         </v-menu>
 
         <!-- Profile / Logout -->
-        <IconButton icon="mdi-account" tooltip="Profile" color="white" @click="handleLogout" />
+        <v-menu offset-y bottom transition="scale-transition">
+          <template #activator="{props}">
+            <div v-bind="props">
+              <IconButton v-if="!userInitials" icon="userInitials || mdi-account" tooltip="Profile" color="white"/>
+              <v-avatar v-else size="36" class="cursor-pointer" color="deep-purple accent-4">
+                <span class="white--text">{{ userInitials }}</span>
+              </v-avatar>
+            </div>
+          </template>
+            <v-list>
+              <!---My Profile-->
+              <v-list-item @click="$router.push('profile')">
+                <v-list-item-title>My Profile</v-list-item-title>
+              </v-list-item>
+              <!---My Orders-->
+              <v-list-item @click="$router.push('orderHistory')">
+                <v-list-item-title>My Orders</v-list-item-title>
+              </v-list-item>
+              <!---Logout--->
+              <v-list-item @click="handleLogout">
+                <v-list-item-title>Logout</v-list-item-title>
+              </v-list-item>
+            </v-list>
+        </v-menu>
+        
       </v-app-bar>
 
       <!-- Desktop drawer -->
@@ -166,8 +204,8 @@ function handleLogout() {
       <!-- Mobile drawer -->
       <v-navigation-drawer v-model="drawer" app temporary v-if="isMobile">
         <v-list dense nav>
-          <v-list-item to="/home" title="Home" prepend-icon="mdi-home" />
-          <v-list-item to="/product" title="Products" prepend-icon="mdi-package-variant" />
+          <v-list-item to="/home" title="Home" prepend-icon="mdi-home" @click="drawer = false"/>
+          <v-list-item to="/product" title="Products" prepend-icon="mdi-package-variant" @click="drawer = false"/>
           <v-divider class="my-2" />
           <v-subheader>Categories</v-subheader>
           <v-list-item v-for="(category, i) in categories" :key="i" :title="category" prepend-icon="mdi-food-apple" />
@@ -191,5 +229,9 @@ function handleLogout() {
   align-items: center;
   background: #f5f5f5;
   font-size: 1.2rem;
+}
+.active-link {
+  font-weight: bold;
+  text-decoration: solid;
 }
 </style>

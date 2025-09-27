@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { defineProps, defineEmits } from "vue";
 
-const { icon, tooltip, badge, color } = defineProps<{
+const { icon, size, tooltip, badge, color } = defineProps<{
   icon: string;
+  size?: string;
   tooltip?: string;
   badge?: number;
   color?: string;
@@ -23,9 +24,10 @@ function handleClick(event: MouseEvent) {
         v-bind="tooltipProps"
         icon
         :color="color || 'primary'"
+        :size="size || 'default'"
         @click="handleClick"
       >
-        <v-icon :icon="icon" /> <!-- Correct way to bind Vuetify icon -->
+        <v-icon :icon="icon" :size="size ==='small' ? '16' :size || undefined" /> <!-- Correct way to bind Vuetify icon -->
         <v-badge
           v-if="badge && badge > 0"
           :content="badge"
@@ -39,7 +41,7 @@ function handleClick(event: MouseEvent) {
   </v-tooltip>
 
   <v-btn v-else icon :color="color || 'primary'" @click="handleClick">
-    <v-icon :icon="icon" />
+    <v-icon :icon="icon" :size="size || undefined"/>
     <v-badge
       v-if="badge && badge > 0"
       :content="badge"

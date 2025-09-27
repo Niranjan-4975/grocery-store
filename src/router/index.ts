@@ -4,6 +4,10 @@ import Home from "../components/Home/Home.vue";
 import Products from "../components/Products/Products.vue";
 import Login from "../components/Auth/Login.vue";
 import { useAuth } from "../composables/useAuth.ts";
+import ProductDetail from "../components/Products/ProductDetail.vue";
+import Checkout from "../components/Checkout/Checkout.vue";
+import Profile from "../components/Auth/Profile.vue";
+import OrderHistory from "../components/Order/OrderHistory.vue";
 
 const routes = [
   // Redirect root to /login or /home depending on auth
@@ -26,6 +30,10 @@ const routes = [
     children: [
       { path: "home", name: "Home", component: Home },
       { path: "product", name: "Products", component: Products },
+      { path: "product/:id", name: "ProductDetail", component: ProductDetail},
+      { path: "checkout", name: "Checkout", component: Checkout},
+      { path: "profile", name: "Profile", component: Profile},
+      { path: "orderHistory", name: "OrderHistory", component: OrderHistory}
     ],
   },
   {
