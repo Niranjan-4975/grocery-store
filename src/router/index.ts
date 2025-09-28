@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from "vue-router";
+import { adminRoutes } from "./adminRoutes.ts";
 import Applayout from "../components/common/Applayout.vue";
 import Home from "../components/Home/Home.vue";
 import Products from "../components/Products/Products.vue";
@@ -23,17 +24,18 @@ const routes = [
     component: Login,
     meta: { layout: "none", requiresAuth: false },
   },
+  adminRoutes,
   {
     path: "/",
     component: Applayout,
     meta: { requiresAuth: true },
     children: [
-      { path: "home", name: "Home", component: Home },
-      { path: "product", name: "Products", component: Products },
-      { path: "product/:id", name: "ProductDetail", component: ProductDetail},
-      { path: "checkout", name: "Checkout", component: Checkout},
-      { path: "profile", name: "Profile", component: Profile},
-      { path: "orderHistory", name: "OrderHistory", component: OrderHistory}
+      { path: "home", name: "Home", component: Home, meta: {role: 'customer'}},
+      { path: "product", name: "Products", component: Products, meta: {role: 'customer'}},
+      { path: "product/:id", name: "ProductDetail", component: ProductDetail, meta: {role: 'customer'}},
+      { path: "checkout", name: "Checkout", component: Checkout, meta: {role: 'customer'}},
+      { path: "profile", name: "Profile", component: Profile, meta: {role: 'customer'}},
+      { path: "orderHistory", name: "OrderHistory", component: OrderHistory, meta: {role: 'customer'}}
     ],
   },
   {
@@ -48,20 +50,27 @@ const router = createRouter({
 });
 
 router.beforeEach((to, _from, next) => {
-  const { isAuthenticated } = useAuth();
-
+  const { isAuthenticated, user, initAuth } = useAuth();
+  initAuth();
   if (to.path === "/") {
     return isAuthenticated.value ? next("/home") : next("/login");
-  } 
-  if(to.meta.requiresAuth && !isAuthenticated.value){
+  }
+  if (to.meta.requiresAuth && !isAuthenticated.value) {
     return next("/login");
   }
-  if((to.path === "/login" || to.path === "/signup") && isAuthenticated.value){
+  if ((to.path === "/login" || to.path === "/signup") && isAuthenticated.value) {
     return next("/home");
   }
-  console.log("isAuthenticated value -->",isAuthenticated.value)
+  // ✅ Role-based route enforcement
+  if (to.meta.role && user.value?.role !== to.meta.role) {
+    // If admin tries to access customer route → redirect to /admin
+    if (user.value?.role === "admin") return next("/admin");
+
+    // If customer tries to access admin route → redirect to /home
+    if (user.value?.role === "customer") return next("/home");
+  }
   next();
 });
 
-console.log("beforeEach --->",router.beforeEach)
+
 export default router;

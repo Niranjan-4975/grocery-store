@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, provide } from "vue";
-import { RouterView } from "vue-router";
+import { RouterView} from "vue-router";
 import IconButton from "./IconButton.vue";
 import { useAuth } from "../../composables/useAuth";
 
 // Auth
-const { logout, loading } = useAuth();
-const userName = ref("Niranjan D"); //need to replace real user name later in from auth details
+const { logout, loading, user} = useAuth();
+ //need to replace real user name later in from auth details
 
 const userInitials = computed(()=>{
-  if(!userName.value) return null;
-  return userName.value
+  if(!user.value?.username) return null;
+  return user.value.username
     .split(" ")
     .map(n => n[0])
     .join("")
@@ -81,22 +81,9 @@ const categories = [
   "Beverages", "Snacks", "Frozen Foods", "Household Items"
 ];
 
-// Checkout
-/*function checkout() {
-  if (cart.value.length === 0) {
-    alert("🛒 Your cart is empty!");
-    return;
-  }
-  alert(`Checkout — total ₹${total.value}`);
-  cart.value = [];
-  cartDropdown.value = false;
-}*/
-
-
 // Logout handler
 function handleLogout() {
   logout();
-  // router.push("/login") already handled in useAuth().logout()
 }
 </script>
 

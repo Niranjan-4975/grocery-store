@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "../../composables/useAuth";
 
+
 const router = useRouter();
 const { login } = useAuth();
 const activeTab = ref("login");
@@ -20,9 +21,21 @@ function validateLogin() {
 }
 function handleLogin() {
   if (!validateLogin()) return;
-  // fake login
-  login("12345");
-  router.push("/home");
+  const result = login(loginUsername.value, loginPassword.value);
+  console.log("value of result", result)
+  if (!result.success) {
+    alert("Invalid credentials!");
+    return;
+  }
+  console.log("handleLogin called")
+  // Redirect based on role
+  if (result.role === "admin") {
+    router.push("/admin").catch(()=>{});
+    console.log("Role checked!! -- admin")
+  }else{
+    console.log("Role checked -- customer")
+    router.push("/home").catch(()=>{});
+  }
 }
 
 // ---------------- Signup form state ----------------

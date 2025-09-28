@@ -1,22 +1,21 @@
 <script setup lang="ts">
+import { onMounted } from "vue";
 import { RouterView } from "vue-router";
 import { useAuth } from "./composables/useAuth";
 import Applayout from "./components/common/Applayout.vue";
 
-const { loading } = useAuth();
+const { loading, initAuth } = useAuth();
+
+onMounted(()=>{
+  initAuth();
+});
 </script>
 
 <template>
   <div v-if="loading" class="loading-screen">
     Loading...
   </div>
-
-  <RouterView v-else v-slot="{ Component, route }">
-    <component v-if="route.meta.layout === 'none'" :is="Component" />
-    <Applayout v-else>
-      <component :is="Component" />
-    </Applayout>
-  </RouterView>
+  <RouterView v-else/>
 </template>
 
 <style>

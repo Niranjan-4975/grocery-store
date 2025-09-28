@@ -1,74 +1,99 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref } from 'vue';
 
-const stats = ref([
-  { title: "Total Orders", value: 152, icon: "mdi-cart", color: "blue" },
-  { title: "Total Revenue", value: "₹45,200", icon: "mdi-currency-inr", color: "green" },
-  { title: "Customers", value: 87, icon: "mdi-account-group", color: "purple" },
-  { title: "Products", value: 34, icon: "mdi-package-variant", color: "orange" },
+// --- Sample Data ---
+const totalSales = ref(12500);
+const pendingOrders = ref(8);
+
+const lowStockProducts = ref([
+  { name: 'Tomatoes', category: 'Vegetables', stock: 2 },
+  { name: 'Milk', category: 'Dairy', stock: 5 },
+  { name: 'Bread', category: 'Bakery', stock: 1 },
 ]);
 
-const recentOrders = ref([
-  { id: 1, customer: "Niranjan", total: "₹1,200", status: "Pending" },
-  { id: 2, customer: "Ravi", total: "₹900", status: "Delivered" },
-  { id: 3, customer: "Aarti", total: "₹2,150", status: "Cancelled" },
-  { id: 4, customer: "Manoj", total: "₹750", status: "Delivered" },
+const salesTrend = ref([
+  { date: '2025-09-22', amount: 1500 },
+  { date: '2025-09-23', amount: 1200 },
+  { date: '2025-09-24', amount: 1800 },
+  { date: '2025-09-25', amount: 2000 },
+  { date: '2025-09-26', amount: 2500 },
 ]);
+
+const bestSellers = ref([
+  { product: 'Tomatoes', soldQuantity: 50 },
+  { product: 'Milk', soldQuantity: 40 },
+  { product: 'Bread', soldQuantity: 35 },
+]);
+
+// --- Chart Options (ApexCharts) ---
+const salesChartOptions = ref({
+  chart: { type: 'line', height: 300 },
+  xaxis: { categories: salesTrend.value.map(item => item.date) },
+  series: [{ name: 'Sales', data: salesTrend.value.map(item => item.amount) }],
+  title: { text: 'Sales Trend', align: 'left' },
+});
+
+const bestSellerChartOptions = ref({
+  chart: { type: 'bar', height: 300 },
+  xaxis: { categories: bestSellers.value.map(item => item.product) },
+  series: [{ name: 'Sold Quantity', data: bestSellers.value.map(item => item.soldQuantity) }],
+  title: { text: 'Best-Selling Products', align: 'left' },
+});
 </script>
 
 <template>
-  <div class="admin-dashboard pa-4">
-    <!-- Header -->
-    <h1 class="mb-6">📊 Admin Dashboard</h1>
-
-    <!-- Stats Cards -->
-    <v-row dense>
-      <v-col v-for="(item, i) in stats" :key="i" cols="12" sm="6" md="3">
-        <v-card elevation="2" class="pa-4 text-center">
-          <v-icon :color="item.color" size="36">{{ item.icon }}</v-icon>
-          <h2 class="mt-2">{{ item.value }}</h2>
-          <p class="text-subtitle-2">{{ item.title }}</p>
+  <v-container fluid>
+    <!-- Cards Row -->
+    <v-row class="mb-6">
+      <v-col cols="12" sm="4">
+        <v-card outlined>
+          <v-card-title>Total Sales</v-card-title>
+          <v-card-text>
+            <h2>{{ totalSales }}</h2>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="4">
+        <v-card outlined>
+          <v-card-title>Pending Orders</v-card-title>
+          <v-card-text>
+            <h2>{{ pendingOrders }}</h2>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      <v-col cols="12" sm="4">
+        <v-card outlined>
+          <v-card-title>Low Stock Alerts</v-card-title>
+          <v-card-text>
+            <v-list>
+              <v-list-item v-for="item in lowStockProducts" :key="item.name">
+                <v-list-item-content>
+                  <v-list-item-title>{{ item.name }} ({{ item.stock }} left)</v-list-item-title>
+                  <v-list-item-subtitle>{{ item.category }}</v-list-item-subtitle>
+                </v-list-item-content>
+              </v-list-item>
+            </v-list>
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>
 
-    <!-- Recent Orders -->
-    <h2 class="mt-10 mb-4">🛒 Recent Orders</h2>
-    <v-table class="recent-orders">
-      <thead>
-        <tr>
-          <th>Order ID</th>
-          <th>Customer</th>
-          <th>Total</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="order in recentOrders" :key="order.id">
-          <td>#{{ order.id }}</td>
-          <td>{{ order.customer }}</td>
-          <td>{{ order.total }}</td>
-          <td>
-            <v-chip
-              :color="order.status === 'Delivered' ? 'green' : order.status === 'Cancelled' ? 'red' : 'orange'"
-              dark
-              small
-            >
-              {{ order.status }}
-            </v-chip>
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
-  </div>
+    <!-- Charts Row -->
+    <v-row>
+      <v-col cols="12" sm="6">
+        <apexchart type="line" height="300" :options="salesChartOptions" :series="salesChartOptions.series" />
+      </v-col>
+      <v-col cols="12" sm="6">
+        <apexchart type="bar" height="300" :options="bestSellerChartOptions" :series="bestSellerChartOptions.series" />
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <style scoped>
-.admin-dashboard h1 {
-  font-weight: 600;
-}
-.recent-orders {
-  border: 1px solid #ddd;
-  border-radius: 8px;
+h2 {
+  margin: 0;
+  font-weight: bold;
+  font-size: 2rem;
 }
 </style>
