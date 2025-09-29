@@ -2,7 +2,6 @@
 import { onMounted } from "vue";
 import { RouterView } from "vue-router";
 import { useAuth } from "./composables/useAuth";
-import Applayout from "./components/common/Applayout.vue";
 
 const { loading, initAuth } = useAuth();
 

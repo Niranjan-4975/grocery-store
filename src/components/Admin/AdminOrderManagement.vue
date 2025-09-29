@@ -55,9 +55,11 @@ function openOrderDialog(order: Order) {
 }
 
 function updateOrderStatus() {
-  if (selectedOrder.value) {
+  if (selectedOrder.value && updatedStatus.value) {
     const index = orders.value.findIndex(o => o.id === selectedOrder.value!.id);
-    if (index !== -1) orders.value[index].status = updatedStatus.value;
+    if (index !== -1 && orders.value[index]){
+      orders.value[index].status = updatedStatus.value;
+    }
   }
   dialog.value = false;
 }

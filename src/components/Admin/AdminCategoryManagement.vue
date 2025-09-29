@@ -18,7 +18,6 @@ const categories = ref<Category[]>([
 // --- Dialog State ---
 const dialog = ref(false);
 const isEdit = ref(false);
-const editedCategory = ref<Category | null>(null);
 
 // --- Form Fields ---
 const form = ref<Category>({

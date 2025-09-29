@@ -21,7 +21,6 @@ const products = ref<Product[]>([
 // --- Dialog State ---
 const dialog = ref(false);
 const isEdit = ref(false);
-const editedProduct = ref<Product | null>(null);
 
 // --- Form Fields ---
 const form = ref<Product>({
