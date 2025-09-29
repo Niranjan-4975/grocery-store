@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, ref } from "vue";
+import { inject, ref, computed, onMounted, watch} from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 interface Product {
@@ -31,9 +31,23 @@ const removeAll = inject("removeAll") as any;
 const route = useRoute();
 const router = useRouter();
 
-// Get product by ID from route params
-const productId = Number(route.params.id);
-const product = products.value.find(p => p.id === productId);
+//reactive product
+const product = ref<Product | null>(null);
+//load product by route param
+function loadProduct(){
+  const productId = Number(route.params.id);
+  product.value = products.value.find((p) => p.id === productId) || null;
+}
+onMounted(loadProduct);
+watch(() => route.params.id, loadProduct);
+
+//Recommended products
+const recommended = computed(() =>{
+  if(!product.value) return [];
+  return products.value.filter(
+    (p) => p.category === product.value?.category && p.id !== product.value?.id
+  );
+});
 
 // Cart helpers
 function cartItem(product: Product) {
@@ -55,6 +69,10 @@ function remove(product: Product) {
 // Navigate back
 function goBack() {
   router.back();
+}
+function goToProduct(id: number){
+  console.log("router")
+  router.replace(`/product/${id}`);
 }
 </script>
 
@@ -86,6 +104,20 @@ function goBack() {
           Add to Cart
         </v-btn>
       </div>
+    </div>
+
+    <!--Recomended Section-->
+    <div v-if="recommended.length" class="recommended-section">
+      <h3>Recommended for You</h3>
+      <v-slide-group show-arrows>
+        <v-slide-item v-for="rec in recommended" :key="rec.id">
+          <v-card class="ma-2" outlined width="160" @click="goToProduct(rec.id)">
+            <v-img :src="rec.image" height="100"></v-img>
+            <v-card-title class="text-subtitle-2">{{ rec.name }}</v-card-title>
+            <v-card-subtitle>₹{{ rec.price }}</v-card-subtitle>
+          </v-card>
+        </v-slide-item>
+      </v-slide-group>
     </div>
   </div>
 
@@ -143,5 +175,9 @@ function goBack() {
 .product-not-found {
   text-align: center;
   margin-top: 50px;
+}
+
+.recommended-section{
+  margin-top: 32px;
 }
 </style>
