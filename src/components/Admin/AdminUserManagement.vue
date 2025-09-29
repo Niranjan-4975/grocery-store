@@ -48,7 +48,9 @@ const selectedUser = ref<User | null>(null);
 // --- Functions ---
 function toggleStatus(user: User) {
   const index = users.value.findIndex(u => u.id === user.id);
-  if (index !== -1) users.value[index].status = !users.value[index].status;
+  if (index !== -1 && users.value[index]){
+     users.value[index].status = !users.value[index].status;
+  }
 }
 
 function viewPurchaseHistory(user: User) {
