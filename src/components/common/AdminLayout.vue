@@ -71,10 +71,10 @@ function handleLogout() {
           </v-avatar>
         </template>
         <v-list>
-          <v-list-item @click="$router.push('/profile')">
+          <v-list-item @click="$router.push({name: 'AdminProfile'})" prepend-icon="mdi-account">
             <v-list-item-title>My Profile</v-list-item-title>
           </v-list-item>
-          <v-list-item @click="handleLogout">
+          <v-list-item @click="handleLogout" prepend-icon="mdi-logout">
             <v-list-item-title>Logout</v-list-item-title>
           </v-list-item>
         </v-list>

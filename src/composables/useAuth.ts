@@ -1,16 +1,11 @@
 // composables/useAuth.ts
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-
-
-const users = [
-  { username: "admin@abc.com", password: "admin123", role: "admin" },
-  { username: "customer@abc.com", password: "cust123", role: "customer" },
-];
+import axios from "axios";
 
 // ✅ Singleton reactive state
 const isAuthenticated = ref(false);
-const user = ref<{ username: string; role: string } | null>(null);
+const user = ref<{ username: string; email: string; role: string } | null>(null);
 const token = ref<string | null>(null);
 const loading = ref(true);
 
@@ -33,18 +28,29 @@ export function useAuth() {
     loading.value = false;
   }
 
-  function login(username: string, password: string): { success: boolean; role?: string } {
-    const foundUser = users.find(u => u.username === username && u.password === password);
-    if (!foundUser) return { success: false };
-
-    token.value = "mock-token-" + foundUser.username;
-    user.value = { username: foundUser.username, role: foundUser.role };
+async function login(username: string, password: string): Promise<{ success: boolean; role?: string; error?:string;}> {
+  try{
+    //Call Spring Boot Endpoint
+    const response = await axios.post('http://localhost:8080/api/auth/login', {
+      email: username,
+      password: password
+    });
+    // Extract data)
+    const data = response.data;
+    // Update State
+    token.value = data.token;
+    user.value = { username: data.userName, email: data.email, role: data.role };
     isAuthenticated.value = true;
+    // Save to Local Storage
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user",JSON.stringify(user.value));
 
-    localStorage.setItem("token", token.value);
-    localStorage.setItem("user", JSON.stringify(user.value));
-
-    return { success: true, role: foundUser.role };
+    return {success: true, role: data.role};
+  } catch (err: any){
+    console.error("Login API Error:", err);
+      // Return failure so the UI can show an alert
+      return { success: false, error: err.response?.data?.message || "Login failed" };
+  }
   }
 
   function logout() {

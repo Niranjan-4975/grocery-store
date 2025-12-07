@@ -164,15 +164,15 @@ function handleLogout() {
           </template>
             <v-list>
               <!---My Profile-->
-              <v-list-item @click="$router.push('profile')">
+              <v-list-item @click="$router.push('profile')" prepend-icon="mdi-account">
                 <v-list-item-title>My Profile</v-list-item-title>
               </v-list-item>
               <!---My Orders-->
-              <v-list-item @click="$router.push('orderHistory')">
+              <v-list-item @click="$router.push('orderHistory')" prepend-icon="mdi-clipboard-text-clock">
                 <v-list-item-title>My Orders</v-list-item-title>
               </v-list-item>
               <!---Logout--->
-              <v-list-item @click="handleLogout">
+              <v-list-item @click="handleLogout" prepend-icon="mdi-logout">
                 <v-list-item-title>Logout</v-list-item-title>
               </v-list-item>
             </v-list>
