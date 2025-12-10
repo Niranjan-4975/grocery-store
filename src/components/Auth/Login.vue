@@ -21,27 +21,35 @@ function validateLogin() {
   if (!loginPassword.value.trim()) loginErrors.value.password = "Password required";
   return Object.keys(loginErrors.value).length === 0;
 }
+
+// ✅ NEW STATE FOR CUSTOM DIALOG
+const showStatusDialog = ref(false);
+const statusDialogMessage = ref("");
+const statusDialogTitle = ref("")
+
 async function handleLogin() {
   if (!validateLogin()) return;
   isSubmitting.value = true;
-  let result;
-  try {
-    result = await login(loginUsername.value, loginPassword.value);
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    alert("Network Error");
-    isSubmitting.value = false;
-    return;
-  }
+  const result = await login(loginUsername.value, loginPassword.value);
   // Now we can check result safely
   console.log("value of result", result);
   if (!result.success) {
-    alert(result.error || "Invalid credentials!");
-    isSubmitting.value = false; // Stop loading
+    const errorMessage = result.error || "Login failed.";
+    // 1. Check for the specific disabled account message
+    if (errorMessage.includes("Account is currently")) {
+        statusDialogTitle.value = "Access Denied";
+        statusDialogMessage.value = "Your account is currently inactive or suspended for security reasons. Please contact the store for assistance.";
+        showStatusDialog.value = true; 
+        loginErrors.value = {}; // Clear standard errors
+    } else {
+        // 2. Standard bad credentials error
+        loginErrors.value.username = errorMessage;
+        loginErrors.value.password = errorMessage; // Display error under both fields
+    }
+    isSubmitting.value = false;
     return;
   }
   console.log("handleLogin called")
-  // Redirect based on role
   const roleString = String(result.role);
   if (roleString.includes("ROLE_ADMIN") || roleString.includes("[ROLE_ADMIN]")) {
     router.push("/admin").catch(()=>{});
@@ -50,7 +58,6 @@ async function handleLogin() {
     console.log("Role checked -- customer")
     router.push("/home").catch(()=>{});
   }
-  isSubmitting.value = false;
 }
 
 // ---------------- Signup form state ----------------
@@ -156,7 +163,7 @@ async function handleSignup() {
               prepend-inner-icon="mdi-lock"
               outlined dense
               :error="Boolean(loginErrors.password)"
-              :error-messages="loginErrors.password ? [loginErrors.password] : []"
+              :error-messages="loginErrors.password && !loginErrors.username? [loginErrors.password] : []"
             />
             <v-btn type="submit" color="primary" block class="mt-4">Login</v-btn>
           </v-form>
@@ -239,6 +246,23 @@ async function handleSignup() {
         </v-window-item>
       </v-window>
     </v-card>
+    <v-dialog v-model="showStatusDialog" max-width="450">
+      <v-card>
+        <v-card-title class="text-h5 error--text">
+          <v-icon color="error" class="mr-2">mdi-alert-circle-outline</v-icon>
+          {{ statusDialogTitle }}
+        </v-card-title>
+        <v-card-text class="pt-4">
+          {{ statusDialogMessage }}
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+            <v-btn color="primary" text @click="showStatusDialog = false">
+            Close
+            </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 

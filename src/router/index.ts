@@ -49,9 +49,20 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to, _from, next) => {
-  const { isAuthenticated, user, initAuth } = useAuth();
-  initAuth();
+router.beforeEach(async (to, _from, next) => {
+  const { isAuthenticated, user, initAuth, loading } = useAuth();
+  // Ensure the initAuth process (which calls the backend /check endpoint) is started.
+  // If loading is true, we haven't finished checking the token yet.
+  if (loading.value) {
+      await initAuth(); 
+  }
+  // Pause the navigation until the asynchronous initAuth() is complete.
+  // This guarantees isAuthenticated.value has the final, correct status.
+  while (loading.value) {
+     // Wait 50ms before checking the loading state again
+     await new Promise(resolve => setTimeout(resolve, 50));
+  }
+
   const isLoggedIn = isAuthenticated.value;
   // Handle messy backend roles (e.g. "[ROLE_ADMIN]" or "ROLE_ADMIN")
   const rawRole = user.value?.role ? String(user.value.role) : "";
@@ -84,25 +95,3 @@ router.beforeEach((to, _from, next) => {
 });
 export default router;
 
-//   if (to.path === "/") {
-//     return isAuthenticated.value ? next("/home") : next("/login");
-//   }
-//   if (to.meta.requiresAuth && !isAuthenticated.value) {
-//     return next("/login");
-//   }
-//   if ((to.path === "/login" || to.path === "/signup") && isAuthenticated.value) {
-//     return next("/home");
-//   }
-//   // ✅ Role-based route enforcement
-//   if (to.meta.role && user.value?.role !== to.meta.role) {
-//     // If admin tries to access customer route → redirect to /admin
-//     if (user.value?.role === "admin") return next("/admin");
-
-//     // If customer tries to access admin route → redirect to /home
-//     if (user.value?.role === "customer") return next("/home");
-//   }
-//   next();
-// });
-
-
-// export default router;
