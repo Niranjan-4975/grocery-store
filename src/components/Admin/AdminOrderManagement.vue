@@ -1,137 +1,222 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import axios from 'axios';
 
-// --- Mock Data ---
-interface Order {
-  id: number;
-  orderId: string;
-  user: string;
-  products: { name: string; qty: number }[];
-  totalAmount: number;
-  status: string;
-  date: string;
-}
+// API Constants
+const API_BASE_URL = 'http://localhost:8080/api/admin/orders';
+const token = localStorage.getItem('token');
 
-const orders = ref<Order[]>([
-  {
-    id: 1,
-    orderId: 'ORD001',
-    user: 'John Doe',
-    products: [
-      { name: 'Tomatoes', qty: 2 },
-      { name: 'Milk', qty: 1 },
-    ],
-    totalAmount: 160,
-    status: 'Pending',
-    date: '2025-09-25',
-  },
-  {
-    id: 2,
-    orderId: 'ORD002',
-    user: 'Jane Smith',
-    products: [
-      { name: 'Bread', qty: 2 },
-      { name: 'Butter', qty: 1 },
-    ],
-    totalAmount: 120,
-    status: 'Shipped',
-    date: '2025-09-24',
-  },
-]);
-
-// --- Dialog State ---
+// --- Reactive State ---
+const orders = ref<Order[]>([]);
+const loading = ref(false);
 const dialog = ref(false);
 const selectedOrder = ref<Order | null>(null);
 const updatedStatus = ref('');
+const selected = ref<number[]>([]); 
+const search = ref('');
 
 // --- Status Options ---
-const statusOptions = ['Pending', 'Shipped', 'Delivered', 'Cancelled'];
+const statusOptions = ['PENDING', 'PROCESSING', 'SHIPPED', 'OUTFORDELIVERY', 'DELIVERED', 'CANCELLED'];
 
-// --- Functions ---
+// --- Orders Interface ---
+interface Order {
+  id: number;
+  userId: number;
+  orderId: string | null;
+  user: { fullName: string };
+  shippingAddress: string;
+  paymentMethod: string;
+  items: { productName: string; quantity: number; price: number }[];
+  totalAmount: number;
+  status: string;
+  orderDate: string;
+}
+
+// 1. Fetch all orders
+async function fetchOrders() {
+  loading.value = true;
+  try {
+    const response = await axios.get(`${API_BASE_URL}/all`, {
+      headers: { "user-payload": token },
+    });
+    orders.value = response.data;
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+  } finally {
+    loading.value = false;
+  }
+}
+
+// 2. Single Update
+async function updateOrderStatus() {
+  if (!selectedOrder.value || !updatedStatus.value) return;
+  try {
+    const url = `${API_BASE_URL}/${selectedOrder.value.id}/status?status=${updatedStatus.value}`;
+    const response = await axios.patch(url, {}, {
+      headers: { "user-payload": token },
+    });
+    if (response.status === 200) {
+      const index = orders.value.findIndex(o => o.id === selectedOrder.value?.id);
+      if (index !== -1 && orders.value[index]) {
+        orders.value[index].status = updatedStatus.value;
+      }
+      dialog.value = false;
+      alert("Order status updated successfully!");
+    }
+  } catch (error) {
+    alert('Failed to update order status.');
+  }
+}
+
+// 3. Bulk Update
+async function bulkUpdate(newStatus: string) {
+  if (selected.value.length === 0) return;
+  
+  try {
+    const payload = { ids: selected.value, status: newStatus };
+    await axios.patch(`${API_BASE_URL}/bulk-status`, payload, {
+      headers: { "user-payload": token },
+    });
+    
+    orders.value.forEach(order => {
+      if (selected.value.includes(order.id)) {
+        order.status = newStatus;
+      }
+    });
+    
+    selected.value = []; 
+    alert("Bulk update successful!");
+  } catch (error) {
+    alert("Bulk update failed.");
+  }
+}
+
+onMounted(fetchOrders);
+
+// --- Helpers ---
 function openOrderDialog(order: Order) {
   selectedOrder.value = { ...order };
   updatedStatus.value = order.status;
   dialog.value = true;
 }
 
-function updateOrderStatus() {
-  if (selectedOrder.value && updatedStatus.value) {
-    const index = orders.value.findIndex(o => o.id === selectedOrder.value!.id);
-    if (index !== -1 && orders.value[index]){
-      orders.value[index].status = updatedStatus.value;
-    }
+function statusColor(status: string) {
+  switch(status){
+    case "PENDING": return "orange";
+    case "PROCESSING": return "blue";
+    case "SHIPPED": return "indigo";
+    case "DELIVERED": return "green";
+    case "CANCELLED": return "red";
+    default: return "grey";
   }
-  dialog.value = false;
 }
 
-function generateInvoice(order: Order) {
-  alert(`Invoice for ${order.orderId} generated! (Mock)`);
-}
+const filteredOrders = computed(() => {
+  const term = search.value.toLowerCase();
+  return orders.value.filter(order => {
+    return (
+      order.id.toString().includes(term) ||
+      order.user.fullName.toLowerCase().includes(term) ||
+      order.paymentMethod.toLowerCase().includes(term) ||
+      order.status.toLowerCase().includes(term)
+    );
+  });
+});
 </script>
 
 <template>
   <v-container fluid>
-    <!-- Orders Table -->
-    <v-row>
-      <v-col cols="12">
-        <v-data-table
-          :items="orders"
-          :headers="[
-            { text: 'Order ID', value: 'orderId' },
-            { text: 'User', value: 'user' },
-            { text: 'Products', value: 'products', sortable: false },
-            { text: 'Total Amount', value: 'totalAmount' },
-            { text: 'Status', value: 'status' },
-            { text: 'Date', value: 'date' },
-            { text: 'Actions', value: 'actions', sortable: false }
-          ]"
-        >
-          <template #item.products="{ item }">
-            <v-list dense>
-              <v-list-item v-for="p in item.products" :key="p.name">
-                <v-list-item-content>
-                  {{ p.name }} ({{ p.qty }})
-                </v-list-item-content>
-              </v-list-item>
-            </v-list>
-          </template>
-
-          <template #item.status="{ item }">
-            <v-chip :color="item.status === 'Pending' ? 'orange' : item.status === 'Shipped' ? 'blue' : item.status === 'Delivered' ? 'green' : 'red'" small>
-              {{ item.status }}
-            </v-chip>
-          </template>
-
-          <template #item.actions="{ item }">
-            <v-btn icon @click="openOrderDialog(item)">
-              <v-icon>mdi-pencil</v-icon>
-            </v-btn>
-            <v-btn icon color="green" @click="generateInvoice(item)">
-              <v-icon>mdi-file-pdf-box</v-icon>
-            </v-btn>
-          </template>
-        </v-data-table>
+    <v-row class="mb-4 align-center">
+      <v-col cols="12" class="d-flex justify-space-between align-center">
+        <h2 class="text-h5 font-weight-bold">Order Management</h2>
+        <v-chip color="primary" variant="tonal" label>Total Orders: {{ orders.length }}</v-chip>
       </v-col>
     </v-row>
 
-    <!-- Order Details / Status Update Dialog -->
-    <v-dialog v-model="dialog" max-width="600px">
-      <v-card v-if="selectedOrder">
-        <v-card-title>Order Details: {{ selectedOrder.orderId }}</v-card-title>
-        <v-card-text>
-          <v-list dense>
-            <v-list-item v-for="p in selectedOrder.products" :key="p.name">
-              <v-list-item-content>{{ p.name }} ({{ p.qty }})</v-list-item-content>
-            </v-list-item>
-          </v-list>
-          <v-text-field v-model="selectedOrder.user" label="User" disabled />
-          <v-text-field v-model="selectedOrder.totalAmount" label="Total Amount" disabled />
-          <v-select v-model="updatedStatus" :items="statusOptions" label="Update Status" />
+    <v-row class="mb-4 align-center">
+      <v-col cols="12" md="4">
+        <v-text-field
+          v-model="search"
+          prepend-inner-icon="mdi-magnify"
+          label="Search orders..."
+          variant="outlined"
+          density="compact"
+          hide-details
+        ></v-text-field>
+      </v-col>
+      <v-col cols="12" md="8" v-if="selected.length > 0">
+        <v-card color="blue-lighten-5" class="pa-1 d-flex align-center border">
+          <span class="mx-4 text-subtitle-2 text-blue-darken-3 font-weight-bold">{{ selected.length }} selected</span>
+          <v-spacer></v-spacer>
+          <span class="text-caption mr-2">Bulk Status Update:</span>
+          <v-btn v-for="status in statusOptions" :key="status" size="x-small" 
+            class="ma-1" color="primary" @click="bulkUpdate(status)">
+            {{ status }}
+          </v-btn>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-card elevation="1">
+      <v-data-table
+        v-model="selected"
+        show-select
+        item-value="id"
+        :items="filteredOrders"
+        :loading="loading"
+        hover
+        :headers="[
+          { title: 'ID', key: 'id' },
+          { title: 'Customer', key: 'user.fullName' },
+          { title: 'Payment', key: 'paymentMethod' },
+          { title: 'Total Amount', key: 'totalAmount' },
+          { title: 'Status', key: 'status' },
+          { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+        ]"
+      >
+        <template #item.totalAmount="{ item }">
+          ₹{{ item.totalAmount?.toFixed(2) }}
+        </template>
+
+        <template #item.status="{ item }">
+          <v-chip :color="statusColor(item.status)" size="small" variant="flat">{{ item.status }}</v-chip>
+        </template>
+
+        <template #item.actions="{ item }">
+          <div class="d-flex justify-end">
+            <v-tooltip text="Update Status" location="top">
+              <template v-slot:activator="{ props }">
+                <v-btn v-bind="props" icon="mdi-pencil" variant="text" size="small" color="primary" @click="openOrderDialog(item)"></v-btn>
+              </template>
+            </v-tooltip>
+
+            <v-tooltip text="Export Invoice (PDF)" location="top">
+              <template v-slot:activator="{ props }">
+                <v-btn v-bind="props" icon="mdi-file-pdf-box" variant="text" size="small" color="green"></v-btn>
+              </template>
+            </v-tooltip>
+          </div>
+        </template>
+      </v-data-table>
+    </v-card>
+
+    <v-dialog v-model="dialog" max-width="500px">
+      <v-card rounded="lg">
+        <v-card-title class="bg-primary text-white">Update Order #{{ selectedOrder?.id }}</v-card-title>
+        <v-card-text class="pt-4">
+          <p class="mb-4"><strong>Customer:</strong> {{ selectedOrder?.user?.fullName }}</p>
+          <v-select
+            v-model="updatedStatus"
+            :items="statusOptions"
+            label="Set Status"
+            variant="outlined"
+            density="compact"
+          ></v-select>
         </v-card-text>
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn text @click="dialog = false">Cancel</v-btn>
-          <v-btn color="success" @click="updateOrderStatus">Save</v-btn>
+          <v-btn variant="text" @click="dialog = false">Cancel</v-btn>
+          <v-btn color="success" variant="elevated" @click="updateOrderStatus">Save Changes</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

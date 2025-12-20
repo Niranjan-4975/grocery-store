@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { inject, computed } from "vue";
+import { ref, inject, computed } from "vue";
 import { useRouter } from "vue-router";
+import axios from "axios";
+
+
+const token = localStorage.getItem("token");
+const API_BASE_URL = "http://localhost:8080/api/orders";
 
 interface Product {
   id: number;
@@ -10,6 +15,9 @@ interface Product {
   quantity?: number;
 }
 
+const shippingAddress = ref("");
+const selectedPayment = ref("COD");
+const paymentOptions = ["COD", "Online Payment"];
 // Inject cart operations
 const cart = inject("cart") as any;
 const addToCart = inject("addToCart") as any;
@@ -22,11 +30,9 @@ const router = useRouter();
 function increase(product: Product) {
   addToCart(product);
 }
-
 function decrease(product: Product) {
   removeFromCart(product);
 }
-
 function remove(product: Product) {
   removeAll(product);
 }
@@ -39,103 +45,114 @@ const total = computed(() => {
 });
 
 // Confirm order
-function confirmOrder() {
+async function confirmOrder() {
   if (!cart.value.length) {
     alert("🛒 Your cart is empty!");
     return;
   }
-  alert(`✅ Order Confirmed! Total: ₹${total.value}`);
-  cart.value = [];
-  router.push("/home");
+  if (!shippingAddress.value) {
+    alert("📍 Please enter a shipping address.");
+    return;
+  }
+  //1. Prepare order payload
+  const orderPayload = {
+    shippingAddress: shippingAddress.value || "Default Address",
+    paymentMethod: selectedPayment.value || "COD",
+    items: cart.value.map((item: Product) => ({
+      productId: item.id,
+      quantity: item.quantity,
+    }))
+  };
+  try {
+    //2. Send order to backend
+    const response = await axios.post(`${API_BASE_URL}/place`, orderPayload, {
+      headers: { "user-payload": token },
+    });
+    if (response.status === 201 || response.status === 200) {
+      alert(`✅ Order Confirmed! Order ID: ${response.data.id}`);
+      cart.value = []; // Clear cart locally
+      router.push("/orders");
+    }
+  } catch (error: any) {
+    console.error("Order Placement Error:", error);
+    alert(`Failed to place order: ${error.response?.data?.message || 'Check console'}`);
+  }
 }
 </script>
 
 <template>
-  <div class="checkout-container">
-    <h2>My Cart</h2>
+  <v-container class="checkout-container">
+    <h2 class="mb-4">My Cart</h2>
 
-    <div v-if="cart.length">
-      <v-card
-        v-for="item in cart"
-        :key="item.id"
-        class="cart-item"
-      >
-        <img :src="item.image" class="item-image" />
-        <div class="item-info">
-          <h3>{{ item.name }}</h3>
-          <p>Price: ₹{{ item.price }}</p>
-          <p>Subtotal: ₹{{ (item.price * (item.quantity || 0)).toFixed(2) }}</p>
-
-          <div class="cart-controls">
-            <v-btn size="small" color="red" icon @click="decrease(item)">
-              <v-icon>mdi-minus</v-icon>
-            </v-btn>
-            <span>{{ item.quantity }}</span>
-            <v-btn size="small" color="green" icon @click="increase(item)">
-              <v-icon>mdi-plus</v-icon>
-            </v-btn>
-            <v-btn size="small" color="error" icon @click="remove(item)">
-              <v-icon>mdi-delete</v-icon>
-            </v-btn>
+    <v-row v-if="cart.length">
+      <v-col cols="12" md="8">
+        <v-card v-for="item in cart" :key="item.id" class="cart-item mb-4" variant="outlined">
+          <div class="d-flex align-center pa-3">
+            <v-img :src="item.image" width="80" height="80" cover class="rounded-lg mr-4"></v-img>
+            <div class="flex-grow-1 item-info">
+              <h3 class="text-subtitle-1 font-weight-bold">{{ item.name }}</h3>
+              <p class="text-caption">Price: ₹{{ item.price }} | Subtotal: ₹{{ (item.price * (item.quantity || 0)).toFixed(2) }}</p>
+              <div class="cart-controls mt-2">
+                <v-btn size="x-small" color="red" icon @click="decrease(item)">
+                  <v-icon>mdi-minus</v-icon>
+                </v-btn>
+                <span class="mx-3 font-weight-bold">{{ item.quantity }}</span>
+                <v-btn size="x-small" color="green" icon @click="increase(item)">
+                  <v-icon>mdi-plus</v-icon>
+                </v-btn>
+                <v-btn size="x-small" color="grey-lighten-1" icon class="ml-4" @click="remove(item)">
+                  <v-icon>mdi-delete</v-icon>
+                </v-btn>
+              </div>
+            </div>
           </div>
-        </div>
-      </v-card>
+        </v-card>
+      </v-col>
 
-      <div class="checkout-summary">
-        <h3>Total: ₹{{ total.toFixed(2) }}</h3>
-        <v-btn color="success" block @click="confirmOrder">
-          Confirm Order
-        </v-btn>
-      </div>
+      <v-col cols="12" md="4">
+        <v-card class="pa-4" elevation="2">
+          <h3 class="mb-4">Shipping Details</h3>
+          <v-textarea
+            label="Delivery Address"
+            v-model="shippingAddress"
+            rows="3"
+            outlined
+            dense
+            class="mb-4"
+          ></v-textarea>
+          <v-select
+            :items="paymentOptions"
+            label="Payment Method"
+            v-model="selectedPayment"
+            outlined
+            dense
+          ></v-select>
+          <v-divider class="my-4"></v-divider>
+          <div class="d-flex justify-space-between text-h6 mb-4">
+            <span>Total:</span>
+            <span class="text-success">₹{{ total.toFixed(2) }}</span>
+          </div>
+          <v-btn color="primary" block large @click="confirmOrder">
+            Confirm Order
+          </v-btn>
+        </v-card>
+      </v-col>
+    </v-row>
+    <div v-else class="text-center py-10 empty-cart">
+      <v-icon size="64" color="grey-lighten-1">mdi-cart-outline</v-icon>
+      <p class="text-h6 text-grey mt-3">🛒 Your cart is empty.</p>
+      <v-btn color="primary" class="mt-4" @click="$router.push('/home')">Start Shopping</v-btn>
     </div>
-
-    <div v-else class="empty-cart">
-      <p>🛒 Your cart is empty.</p>
-      <v-btn text @click="$router.push('/home')">Go to Home</v-btn>
-    </div>
-  </div>
+  </v-container>
 </template>
 
 <style scoped>
 .checkout-container {
-  padding: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
-
-.cart-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-}
-
-.item-image {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-  border-radius: 8px;
-}
-
-.item-info {
-  flex: 1;
-}
-
 .cart-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.checkout-summary {
-  margin-top: 24px;
-  text-align: right;
-}
-
-.empty-cart {
-  text-align: center;
-  margin-top: 50px;
 }
 </style>

@@ -50,7 +50,7 @@ export function useAuth() {
             ...user.value,
             username: response.data.email,
             email: response.data.email,
-            role: response.data.roles[0] // Assuming single primary role, or adjust as needed
+            role: response.data.roles[0].authority // Assuming single primary role, or adjust as needed
         };
       } catch (error) {
         // 4. FAILURE: Backend returned 401 (Expired/Invalid) or a Network Error (Server down)
