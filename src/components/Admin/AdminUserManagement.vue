@@ -1,21 +1,28 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 
+const token = localStorage.getItem('token');   
 // --- State ---
 const users = ref<any[]>([]);
 const loading = ref(false);
 const search = ref("");
 
+// Pagination State
+const page = ref(1);
+const itemsPerPage = ref(10);
+const totalUsers = ref(0);
+
 // --- Dialog State ---
-const historyDialog = ref(false);
 const roleDialog = ref(false);
 const createUserDialog = ref(false);
+const historyDialog = ref(false);
+const userOrders = ref<any[]>([]);
+const loadingOrders = ref(false);
 
 const selectedUser = ref<any>(null);
 const selectedRole = ref("");
 
-// ✅ NEW USER STATE: Matching your AdminCreateRequest.java DTO
 const newUser = ref({
     fullName: '',
     email: '',
@@ -40,20 +47,29 @@ function getStatusColor(status: string) {
 
 // 1. Fetch Users
 async function fetchUsers() {
-    loading.value = true;
-    const token = localStorage.getItem('token');
-    try {
-        const response = await axios.get('http://localhost:8080/api/admin/getusers', {
-            headers: { "user-payload": token },
-            params: { size: 100, sort: 'fullName,asc' } 
-        });
-        users.value = response.data.content;
-    } catch (error){
-        console.error("Error fetching users", error);
-    } finally {
-        loading.value = false;
-    }
+  loading.value = true;
+  try {
+    const response = await axios.get('http://localhost:8080/api/admin/getusers', {
+      headers: { "user-payload": token },
+      params: {
+        page: page.value - 1,
+        size: itemsPerPage.value,
+        search: search.value,
+        sort: 'fullName,asc' 
+      }
+    });
+    users.value = response.data.content;
+    totalUsers.value = response.data.totalElements;
+  } catch (error){
+    console.error("Error fetching users", error);
+  } finally {
+    loading.value = false;
+  }
 }
+watch(search, () => {
+  page.value = 1;
+  fetchUsers();
+});
 
 // 2. Toggle Status (Block / Activate)
 async function toggleStatus(user: any) {
@@ -89,7 +105,6 @@ function openRoleDialog(user: any) {
 
 async function updateRole() {
     if(!selectedUser.value) return;
-    const token = localStorage.getItem('token');
     try {
         await axios.patch(`http://localhost:8080/api/admin/users/${selectedUser.value.id}`,
             { roles: [selectedRole.value] }, 
@@ -109,8 +124,6 @@ async function handleCreateUser() {
         alert("Name, Email and Password are required!");
         return;
     }
-
-    const token = localStorage.getItem('token');   
     try {
         const payload = { 
             fullName: newUser.value.fullName,
@@ -122,15 +135,11 @@ async function handleCreateUser() {
             pinCode: newUser.value.pinCode,
             roles: [newUser.value.role] 
         };
-
         await axios.post('http://localhost:8080/api/admin/create-user', payload, {
             headers: { "user-payload": token }
         }); 
-
         alert("User created successfully!");
         createUserDialog.value = false;
-        
-        // Reset form
         newUser.value = { fullName: '', email: '', password: '', mobile: '', addressLine: '', city: '', pinCode: '', role: 'ROLE_CUSTOMER' };
         fetchUsers(); 
     } catch (error: any) {
@@ -138,9 +147,25 @@ async function handleCreateUser() {
     }
 }
 
-function viewPurchaseHistory(user: any) {
+async function viewPurchaseHistory(user: any) {
     selectedUser.value = user;
     historyDialog.value = true;
+    loadingOrders.value = true;
+    userOrders.value = [];
+    try {
+        const response = await axios.get(`http://localhost:8080/api/admin/orders/user/${user.id}`, {
+            headers: { "user-payload": token }
+        });
+        userOrders.value = response.data;
+    } catch (error) {
+        alert("Failed to fetch order history");
+    } finally {
+        loadingOrders.value = false;
+    }
+}
+// Format Date for History
+function formatDate(dateStr: string) {
+    return new Date(dateStr).toLocaleDateString();
 }
 
 onMounted(fetchUsers);
@@ -149,7 +174,7 @@ const headers = [
   { title: 'ID', key: 'id' },
   { title: 'Full Name', key: 'fullName' }, 
   { title: 'Email', key: 'email' },
-  { title: 'Role', key: 'roles' },
+  { title: 'Role', key: 'roles', sortable: false },
   { title: 'Status', key: 'accountStatus' },
   { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
 ];
@@ -159,7 +184,7 @@ const headers = [
   <v-container fluid>
     <v-row class="mb-4 align-center">
       <v-col cols="12" class="d-flex justify-space-between align-center">
-        <h2 class="text-h5 font-weight-bold">User Management</h2>
+        <h2 class="text-h5 font-weight-bold text-high-emphasis mb-4">User Management</h2>
         <v-btn color="success" prepend-icon="mdi-plus" @click="createUserDialog = true">Add New User</v-btn>
       </v-col>
     </v-row>
@@ -178,7 +203,10 @@ const headers = [
     </v-row>
 
     <v-card elevation="1">
-      <v-data-table :headers="headers" :items="users" :search="search" :loading="loading" hover>
+      <v-data-table-server
+        v-model:page="page" v-model:items-per-page="itemsPerPage" :headers="headers" 
+        :items="users" :items-length="totalUsers"
+        :search="search" :loading="loading" @update:options="fetchUsers" hover>
         <template #item.roles="{ item }">
           <v-chip color="blue-lighten-1" text-color="blue-darken-4" size="x-small" class="mr-1 font-weight-bold" v-for="role in item.roles" :key="role">
             {{ role.name || role }}
@@ -198,13 +226,11 @@ const headers = [
                 <v-btn v-bind="props" icon="mdi-account-cog" variant="text" size="small" color="primary" @click="openRoleDialog(item)"></v-btn>
               </template>
             </v-tooltip>
-
             <v-tooltip text="Purchase History" location="top">
               <template v-slot:activator="{ props }">
                 <v-btn v-bind="props" icon="mdi-history" variant="text" size="small" color="secondary" @click="viewPurchaseHistory(item)"></v-btn>
               </template>
             </v-tooltip>
-
             <v-tooltip :text="item.accountStatus === 'ACTIVE' ? 'Deactivate' : 'Activate'" location="top">
               <template v-slot:activator="{ props }">
                 <v-btn 
@@ -220,7 +246,7 @@ const headers = [
             </v-tooltip>
           </div>
         </template>
-      </v-data-table>
+      </v-data-table-server>
     </v-card>
 
     <v-dialog v-model="createUserDialog" max-width="700px" persistent>
@@ -273,15 +299,40 @@ const headers = [
         </v-card>
     </v-dialog>
 
-    <v-dialog v-model="historyDialog" max-width="600">
+    <v-dialog v-model="historyDialog" max-width="800px">
         <v-card rounded="lg">
-            <v-card-title>Order History: {{ selectedUser?.fullName }}</v-card-title>
-            <v-card-text>
-                 <v-alert type="info" variant="tonal">Real-time order tracking coming soon.</v-alert>
+            <v-card-title class="bg-secondary text-white d-flex justify-space-between align-center">
+                <span>Order History: {{ selectedUser?.fullName }}</span>
+                <v-btn icon="mdi-close" variant="text" @click="historyDialog = false"></v-btn>
+            </v-card-title>
+            <v-card-text class="pa-0">
+                <div v-if="loadingOrders" class="text-center pa-10">
+                    <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                </div>
+                <v-list v-else-if="userOrders.length > 0" lines="three">
+                    <v-list-item v-for="order in userOrders" :key="order.id" :subtitle="'Total: ₹' + order.totalAmount">
+                        <template v-slot:prepend>
+                            <v-icon color="primary">mdi-package-variant-closed</v-icon>
+                        </template>
+                        <v-list-item-title class="font-weight-bold">Order #{{ order.id }} - {{ formatDate(order.orderDate) }}</v-list-item-title>
+                        <v-list-item-subtitle>
+                            Status: <v-chip size="x-small" :color="getStatusColor(order.status)" class="ml-1">{{ order.status }}</v-chip> | 
+                            Method: {{ order.paymentMethod }}
+                        </v-list-item-subtitle>
+                        <div class="text-caption text-grey mt-1">
+                            Items: <span v-for="item in order.items" :key="item.id">{{ item.productName }} (x{{ item.quantity }}), </span>
+                        </div>
+                        <v-divider class="mt-2"></v-divider>
+                    </v-list-item>
+                </v-list>
+                <div v-else class="text-center pa-10 text-grey">
+                    <v-icon size="48">mdi-cart-off</v-icon>
+                    <p>No orders found for this user.</p>
+                </div>
             </v-card-text>
             <v-card-actions>
                 <v-spacer></v-spacer>
-                <v-btn variant="text" @click="historyDialog = false">Close</v-btn>
+                <v-btn color="secondary" variant="text" @click="historyDialog = false">Close</v-btn>
             </v-card-actions>
         </v-card>
     </v-dialog>

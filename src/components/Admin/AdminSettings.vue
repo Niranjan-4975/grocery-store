@@ -1,102 +1,177 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import axios from 'axios';
+import { useTheme } from 'vuetify';
 
-// --- Store Details ---
-const storeName = ref('My Grocery Store');
-const storeAddress = ref('123 Main Street, City, Country');
-const storeContact = ref('+91 9876543210');
+const theme = useTheme();
+const API_URL = 'http://localhost:8080/api/admin/settings';
+const token = localStorage.getItem('token');
+const loading = ref(false);
 
-// --- Payment & Delivery ---
-const paymentMethods = ref(['Cash on Delivery', 'UPI', 'Credit Card']);
-const selectedPaymentMethods = ref(['Cash on Delivery']);
-const deliveryOptions = ref(['Standard', 'Express']);
-const selectedDeliveryOptions = ref(['Standard']);
-const deliveryFee = ref(50);
+const settings = ref({
+    storeName: '',
+    storeAddress: '',
+    storeContact: '',
+    // Dropdown items
+    paymentMethodsList: ['Cash on Delivery', 'UPI', 'Credit Card'],
+    deliveryOptionsList: ['Standard', 'Express'],
+    // Selected values
+    selectedPaymentMethods: [],
+    selectedDeliveryOptions: [],
+    deliveryFee: 0,
+    darkMode: false,
+    primaryColor: '#3f51b5'
+});
 
-// --- Theme Settings ---
-const darkMode = ref(false);
-const primaryColor = ref('#3f51b5');
+// ✅ Theme & Chart Sync Function
+function applyTheme(isDark: boolean, color: string) {
+    // 1. Vuetify Theme Switch
+    theme.global.name.value = isDark ? 'dark' : 'light';
+    
+    // 2. Primary Color update
+    if (theme.themes.value.light) theme.themes.value.light.colors.primary = color;
+    if (theme.themes.value.dark) theme.themes.value.dark.colors.primary = color;
 
-// --- Functions ---
-function saveSettings() {
-  console.log('Settings saved', {
-    storeName: storeName.value,
-    storeAddress: storeAddress.value,
-    storeContact: storeContact.value,
-    selectedPaymentMethods: selectedPaymentMethods.value,
-    selectedDeliveryOptions: selectedDeliveryOptions.value,
-    deliveryFee: deliveryFee.value,
-    darkMode: darkMode.value,
-    primaryColor: primaryColor.value,
-  });
-  alert('Settings saved successfully! (Mock)');
+    // 3. LocalStorage mein save karein taaki Dashboard ke charts ise pick kar sakein
+    localStorage.setItem('app_theme', isDark ? 'dark' : 'light');
 }
+
+async function loadSettings() {
+    try {
+        const res = await axios.get(API_URL, { headers: { "user-payload": token } });
+        if (res.data) {
+            settings.value = { ...settings.value, ...res.data };
+            settings.value.selectedPaymentMethods = res.data.paymentMethods || [];
+            settings.value.selectedDeliveryOptions = res.data.deliveryOptions || [];
+            
+            // Initial theme apply
+            applyTheme(settings.value.darkMode, settings.value.primaryColor);
+        }
+    } catch (error) { console.error("Error loading settings:", error); }
+}
+
+async function saveSettings() {
+    loading.value = true;
+    try {
+        const payload = {
+            ...settings.value,
+            paymentMethods: settings.value.selectedPaymentMethods,
+            deliveryOptions: settings.value.selectedDeliveryOptions
+        };
+        await axios.put(API_URL, payload, { headers: { "user-payload": token } });
+        
+        applyTheme(settings.value.darkMode, settings.value.primaryColor);
+        alert('Settings & Theme Applied Globally!');
+    } catch (error) { alert('Failed to save settings'); }
+    finally { loading.value = false; }
+}
+
+// ✅ Live Preview Watchers
+watch(() => settings.value.darkMode, (val) => theme.global.name.value = val ? 'dark' : 'light');
+watch(() => settings.value.primaryColor, (val) => {
+    if (theme.themes.value.light) theme.themes.value.light.colors.primary = val;
+    if (theme.themes.value.dark) theme.themes.value.dark.colors.primary = val;
+});
+
+onMounted(loadSettings);
 </script>
 
 <template>
   <v-container fluid>
-    <v-row>
-      <!-- Store Details -->
-      <v-col cols="12" md="6">
-        <v-card class="pa-4">
-          <v-card-title>Store Details</v-card-title>
-          <v-card-text>
-            <v-text-field v-model="storeName" label="Store Name" />
-            <v-textarea v-model="storeAddress" label="Address" rows="2" />
-            <v-text-field v-model="storeContact" label="Contact Number" />
-          </v-card-text>
-        </v-card>
-      </v-col>
-
-      <!-- Payment & Delivery -->
-      <v-col cols="12" md="6">
-        <v-card class="pa-4">
-          <v-card-title>Payment & Delivery</v-card-title>
-          <v-card-text>
-            <v-select
-              v-model="selectedPaymentMethods"
-              :items="paymentMethods"
-              label="Payment Methods"
-              multiple
-              chips
-            />
-            <v-select
-              v-model="selectedDeliveryOptions"
-              :items="deliveryOptions"
-              label="Delivery Options"
-              multiple
-              chips
-            />
-            <v-text-field v-model="deliveryFee" label="Delivery Fee (₹)" type="number" />
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Theme Settings -->
-    <v-row class="mt-4">
-      <v-col cols="12" md="6">
-        <v-card class="pa-4">
-          <v-card-title>Theme Settings</v-card-title>
-          <v-card-text>
-            <v-switch v-model="darkMode" label="Dark Mode" />
-            <v-color-picker v-model="primaryColor" mode="hexa" hide-canvas hide-inputs hide-mode-switch flat />
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Save Button -->
-    <v-row class="mt-4">
+    <v-row class="mb-4">
       <v-col cols="12">
-        <v-btn color="success" @click="saveSettings">Save Settings</v-btn>
+        <h2 class="text-h5 font-weight-bold text-high-emphasis">Store & Theme Settings</h2>
       </v-col>
     </v-row>
+    
+    <v-row>
+      <v-col cols="12" md="6">
+        <v-card elevation="2" rounded="lg">
+          <v-card-title class="bg-primary text-on-primary py-3 font-weight-bold">
+            <v-icon start>mdi-store</v-icon> Store Details
+          </v-card-title>
+          <v-card-text class="pt-4">
+            <v-text-field v-model="settings.storeName" label="Store Name" variant="outlined" density="compact" />
+            <v-textarea v-model="settings.storeAddress" label="Address" rows="2" variant="outlined" density="compact" />
+            <v-text-field v-model="settings.storeContact" label="Contact Number" variant="outlined" density="compact" />
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" md="6">
+        <v-card elevation="2" rounded="lg">
+          <v-card-title class="bg-primary text-on-primary py-3 font-weight-bold">
+            <v-icon start>mdi-truck-delivery</v-icon> Logistics & Payments
+          </v-card-title>
+          <v-card-text class="pt-4">
+            <v-select 
+              v-model="settings.selectedPaymentMethods" 
+              :items="settings.paymentMethodsList" 
+              label="Payment Methods" 
+              multiple 
+              chips 
+              variant="outlined" 
+              density="compact" 
+            />
+            <v-select 
+              v-model="settings.selectedDeliveryOptions" 
+              :items="settings.deliveryOptionsList" 
+              label="Delivery Options" 
+              multiple 
+              chips 
+              variant="outlined" 
+              density="compact" 
+            />
+            <v-text-field 
+              v-model="settings.deliveryFee" 
+              label="Delivery Fee (₹)" 
+              type="number" 
+              variant="outlined" 
+              density="compact" 
+              prepend-inner-icon="mdi-currency-inr"
+            />
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row class="mt-4">
+      <v-col cols="12" md="6">
+        <v-card elevation="2" rounded="lg">
+          <v-card-title class="bg-primary text-on-primary py-3 font-weight-bold">
+            <v-icon start>mdi-palette</v-icon> Appearance (Live Preview)
+          </v-card-title>
+          <v-card-text class="pt-4">
+            <v-switch 
+                v-model="settings.darkMode" 
+                :label="settings.darkMode ? 'Dark Mode On' : 'Light Mode On'" 
+                color="primary" 
+                inset
+            />
+            
+            <div class="mb-2 font-weight-bold text-high-emphasis">Primary Brand Color</div>
+            <v-color-picker 
+                v-model="settings.primaryColor" 
+                mode="hexa" 
+                hide-inputs 
+                show-swatches 
+                elevation="0"
+                width="100%"
+            />
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-btn 
+      color="primary" 
+      class="mt-6" 
+      size="large" 
+      @click="saveSettings" 
+      :loading="loading" 
+      prepend-icon="mdi-content-save-check"
+    >
+      Save All Configurations
+    </v-btn>
   </v-container>
 </template>
-
-<style scoped>
-.v-card {
-  margin-bottom: 16px;
-}
-</style>

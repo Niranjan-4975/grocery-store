@@ -11,7 +11,7 @@ interface Product {
   id: number;
   name: string;
   price: number;
-  image: string;
+  imageUrl: string;
   quantity?: number;
 }
 
@@ -88,7 +88,9 @@ async function confirmOrder() {
       <v-col cols="12" md="8">
         <v-card v-for="item in cart" :key="item.id" class="cart-item mb-4" variant="outlined">
           <div class="d-flex align-center pa-3">
-            <v-img :src="item.image" width="80" height="80" cover class="rounded-lg mr-4"></v-img>
+            <v-img :src="item.imageUrl ? `http://localhost:8080${item.imageUrl}` : '/placeholder.png'"
+             cover class="rounded-lg mr-4">
+            </v-img>
             <div class="flex-grow-1 item-info">
               <h3 class="text-subtitle-1 font-weight-bold">{{ item.name }}</h3>
               <p class="text-caption">Price: ₹{{ item.price }} | Subtotal: ₹{{ (item.price * (item.quantity || 0)).toFixed(2) }}</p>

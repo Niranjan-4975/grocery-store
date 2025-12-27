@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 
-// --- Constants ---
+// ... existing constants ...
 const API_URL = 'http://localhost:8080/api/admin/products'; 
 const CATEGORY_API_URL = 'http://localhost:8080/api/admin/categories';
 const token = localStorage.getItem('token');
@@ -18,6 +18,7 @@ interface Product {
   stock: number;
   status: ProductStatus;
   imageUrl: string;
+  featured: boolean; // ✅ Added to Interface
 }
 
 const products = ref<Product[]>([]);
@@ -25,11 +26,7 @@ const categories = ref<any[]>([]);
 const loading = ref(false);
 const dialog = ref(false);
 const isEdit = ref(false);
-const search = ref(''); // Added search ref
-
-// Image Preview State
-const showPreviewDialog = ref(false); 
-const currentImagePreview = ref(''); 
+const search = ref('');
 
 // Form Fields
 const productForm = ref<any>({
@@ -39,25 +36,39 @@ const productForm = ref<any>({
   price: 0,
   stock: 0,
   status: 'ACTIVE',
-  description: ''
+  description: '',
+  featured: false
 });
 
-const fileToUpload = ref<File | null>(null); 
-const previewUrl = ref('');
-
-// --- Logic Functions ---
-
-function openPreview() {
-    if (fileToUpload.value) {
-        currentImagePreview.value = previewUrl.value; 
-    } else if (productForm.value.imageUrl) {
-        currentImagePreview.value = `http://localhost:8080${productForm.value.imageUrl}`;
-    } else {
-        alert("No image selected to preview.");
-        return;
+// Pagination states
+const page = ref(1)
+const itemsPerPage = ref(10);
+const totalItems = ref(0);
+// ... fetchCategories, fetchProducts, handleFileChange ...
+async function fetchProducts(){
+  if(loading.value) return;
+  loading.value = true;
+  try{
+      const response = await axios.get(`${API_URL}`, {
+          headers: { "user-payload": token },
+          params: {
+              page: page.value - 1,
+              size: itemsPerPage.value,
+              search: search.value
+          }
+      });
+      products.value = response.data.content;
+      totalItems.value = response.data.totalElements;
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    } finally {
+      loading.value = false;
     }
-    showPreviewDialog.value = true;
 }
+watch(search, () => {
+  page.value = 1; // Reset to first page on search
+  fetchProducts();
+});
 
 async function fetchCategories(){
   try {
@@ -73,34 +84,9 @@ async function fetchCategories(){
     }
 }
 
-async function fetchProducts(){
-  loading.value = true;
-  try{
-      const response = await axios.get(`${API_URL}`, {
-          headers: { "user-payload": token }
-      });
-      products.value = response.data.content;
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    } finally {
-      loading.value = false;
-    }
-}
-
-function handleFileChange(event: Event){
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  fileToUpload.value = file || null;
-  if (file) {
-      previewUrl.value = URL.createObjectURL(file);
-  } else {
-      previewUrl.value = productForm.value.imageUrl ? `http://localhost:8080${productForm.value.imageUrl}` : '';
-  }
-}
-
 function openAddDialog() {
   isEdit.value = false;
-  productForm.value = { id: 0, name: '', categoryId: null, price: 0, stock: 0, status: 'ACTIVE', imageUrl: '', description: '' };
+  productForm.value = { id: 0, name: '', categoryId: null, price: 0, stock: 0, status: 'ACTIVE', imageUrl: '', description: '', featured: false };
   fileToUpload.value = null;
   previewUrl.value = '';
   dialog.value = true;
@@ -122,9 +108,9 @@ async function saveProduct() {
       alert("Name and Category are required.");
       return;
   }
-
   let savedProduct: Product | null = null;
   const isUpdating = isEdit.value && productForm.value.id;
+  
   const jsonPayload = {
     name: productForm.value.name,
     description: productForm.value.description,
@@ -132,8 +118,8 @@ async function saveProduct() {
     stock: productForm.value.stock,
     categoryId: productForm.value.categoryId,
     status: productForm.value.status,
+    featured: productForm.value.featured, // ✅ Send to backend
   };
- 
   try {
     if (isUpdating) {
       const response = await axios.put(`${API_URL}/${productForm.value.id}`, jsonPayload, {
@@ -146,7 +132,6 @@ async function saveProduct() {
       });
       savedProduct = response.data;
     }
-
     if (fileToUpload.value && savedProduct) {
       const formData = new FormData();
       formData.append('file', fileToUpload.value);
@@ -158,6 +143,35 @@ async function saveProduct() {
     await fetchProducts();     
   } catch (error: any) {
     alert(`Failed to save product: ${error.response?.data?.message || 'Check console.'}`);
+  }
+}
+
+// ... existing preview and delete functions ...
+const fileToUpload = ref<File | null>(null); 
+const previewUrl = ref('');
+const showPreviewDialog = ref(false); 
+const currentImagePreview = ref(''); 
+
+function openPreview() {
+    if (fileToUpload.value) {
+        currentImagePreview.value = previewUrl.value; 
+    } else if (productForm.value.imageUrl) {
+        currentImagePreview.value = `http://localhost:8080${productForm.value.imageUrl}`;
+    } else {
+        alert("No image selected to preview.");
+        return;
+    }
+    showPreviewDialog.value = true;
+}
+
+function handleFileChange(event: Event){
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  fileToUpload.value = file || null;
+  if (file) {
+      previewUrl.value = URL.createObjectURL(file);
+  } else {
+      previewUrl.value = productForm.value.imageUrl ? `http://localhost:8080${productForm.value.imageUrl}` : '';
   }
 }
 
@@ -183,7 +197,7 @@ onMounted(() => {
   <v-container fluid>
     <v-row class="mb-4 align-center">
       <v-col cols="12" class="d-flex justify-space-between align-center">
-        <h2 class="text-h5 font-weight-bold">Product Management</h2>
+        <h2 class="text-h5 font-weight-bold text-high-emphasis mb-4">Product Management</h2>
         <v-btn color="primary" prepend-icon="mdi-plus" @click="openAddDialog">Add Product</v-btn>
       </v-col>
     </v-row>
@@ -192,6 +206,7 @@ onMounted(() => {
       <v-col cols="12" md="4">
         <v-text-field
           v-model="search"
+          v-click-outside="() => {}"
           prepend-inner-icon="mdi-magnify"
           label="Search products..."
           variant="outlined"
@@ -202,14 +217,20 @@ onMounted(() => {
     </v-row>
 
     <v-card elevation="1">
-      <v-data-table 
-        :items="products" 
+      <v-data-table-server
+        v-model:page="page"
+        v-model:items-per-page="itemsPerPage"
+        :items="products"
+        :items-length="totalItems"
         :search="search"
         :loading="loading"
+        :items-per-page-options="[10,25,50,100]"
+        @update:options="fetchProducts"
         hover
         :headers="[
           { title: 'Image', key: 'imageUrl', sortable: false },
           { title: 'Name', key: 'name' },
+          { title: 'Featured', key: 'featured', align: 'center' },
           { title: 'Category', key: 'category.name' },
           { title: 'Price', key: 'price' },
           { title: 'Stock', key: 'stock' },
@@ -217,6 +238,12 @@ onMounted(() => {
           { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
         ]"
       >
+        <template #item.featured="{ item }">
+          <v-icon :color="item.featured ? 'amber' : 'grey-lighten-1'">
+            {{ item.featured ? 'mdi-star' : 'mdi-star-outline' }}
+          </v-icon>
+        </template>
+
         <template #item.imageUrl="{item}">
           <v-img 
             :src="item.imageUrl ? `http://localhost:8080${item.imageUrl}` : '/placeholder.png'"
@@ -236,37 +263,14 @@ onMounted(() => {
             {{ item.status }}
           </v-chip>
         </template>
-        
+
         <template #item.actions="{ item }">
           <div class="d-flex justify-end">
-            <v-tooltip text="Edit Product" location="top">
-              <template v-slot:activator="{ props }">
-                <v-btn 
-                  v-bind="props" 
-                  icon="mdi-pencil" 
-                  variant="text" 
-                  size="small" 
-                  color="primary" 
-                  @click="openEditDialog(item)"
-                ></v-btn>
-              </template>
-            </v-tooltip>
-
-            <v-tooltip text="Delete Product" location="top">
-              <template v-slot:activator="{ props }">
-                <v-btn 
-                  v-bind="props" 
-                  icon="mdi-delete" 
-                  variant="text" 
-                  size="small" 
-                  color="red" 
-                  @click="deleteProduct(item)"
-                ></v-btn>
-              </template>
-            </v-tooltip>
+            <v-btn icon="mdi-pencil" variant="text" size="small" color="primary" @click="openEditDialog(item)"></v-btn>
+            <v-btn icon="mdi-delete" variant="text" size="small" color="red" @click="deleteProduct(item)"></v-btn>
           </div>
         </template>
-      </v-data-table>
+      </v-data-table-server>
     </v-card>
 
     <v-dialog v-model="dialog" max-width="600px">
@@ -276,39 +280,24 @@ onMounted(() => {
         </v-card-title>
         <v-card-text class="pt-4">
           <v-form>
+            <v-switch
+              v-model="productForm.featured"
+              color="amber"
+              label="Mark as Featured Product"
+              hide-details
+              inset
+              class="mb-4"
+            ></v-switch>
+
+            <v-text-field v-model="productForm.name" label="Product Name" variant="outlined" density="compact" required/>         
+            <v-autocomplete v-model="productForm.categoryId" :items="categories" label="Category" item-title="title" item-value="value" variant="outlined" density="compact" required />
             <v-row dense>
-              <v-col cols="12">
-                <v-text-field v-model="productForm.name" label="Product Name" variant="outlined" density="compact" required/>         
-                <v-autocomplete
-                  v-model="productForm.categoryId"
-                  :items="categories" 
-                  label="Category" 
-                  item-title="title" 
-                  item-value="value"
-                  variant="outlined" 
-                  density="compact"
-                  required
-                />
-                <v-row dense>
-                  <v-col cols="6">
-                    <v-text-field v-model.number="productForm.price" label="Price" prefix="₹" required variant="outlined" density="compact"/>
-                  </v-col>
-                  <v-col cols="6">
-                    <v-text-field v-model.number="productForm.stock" label="Stock" variant="outlined" density="compact" required />
-                  </v-col>
-                </v-row>
-                <v-textarea v-model="productForm.description" label="Description" variant="outlined" density="compact" rows="2" />
-                <v-select v-model="productForm.status" :items="['ACTIVE', 'INACTIVE']" label="Status" variant="outlined" density="compact" required /> 
-                <v-file-input 
-                  label="Product Image"
-                  accept="image/*"
-                  @change="handleFileChange"
-                  prepend-icon="mdi-camera"
-                  variant="outlined"
-                  density="compact"
-                ></v-file-input>
-              </v-col>
+              <v-col cols="6"><v-text-field v-model.number="productForm.price" label="Price" prefix="₹" variant="outlined" density="compact"/></v-col>
+              <v-col cols="6"><v-text-field v-model.number="productForm.stock" label="Stock" variant="outlined" density="compact"/></v-col>
             </v-row>
+            <v-textarea v-model="productForm.description" label="Description" variant="outlined" density="compact" rows="2" />
+            <v-select v-model="productForm.status" :items="['ACTIVE', 'INACTIVE']" label="Status" variant="outlined" density="compact" /> 
+            <v-file-input label="Product Image" accept="image/*" @change="handleFileChange" prepend-icon="mdi-camera" variant="outlined" density="compact" />
           </v-form>
         </v-card-text>
         <v-card-actions>
@@ -326,7 +315,6 @@ onMounted(() => {
         </v-card-actions>
       </v-card>
     </v-dialog>
-
     <v-dialog v-model="showPreviewDialog" max-width="400">
       <v-card rounded="lg">
         <v-card-title>Image Preview</v-card-title>
@@ -341,17 +329,3 @@ onMounted(() => {
     </v-dialog>
   </v-container>
 </template>
-
-<style scoped>
-.v-data-table {
-  margin-top: 10px;
-}
-input[type=number]::-webkit-inner-spin-button, 
-input[type=number]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-.v-field--focused {
-    outline: none !important;
-}
-</style>

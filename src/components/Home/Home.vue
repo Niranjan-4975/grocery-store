@@ -1,36 +1,41 @@
 <script setup lang="ts">
-import { inject, ref } from "vue";
+import { inject, ref, onMounted } from "vue";
+import axios from "axios";
 
 interface Product {
   id: number;
   name: string;
   price: number;
-  image: string;
+  imageUrl: string;
   quantity?: number;
 }
 
-// Regular products
-const products = ref<Product[]>([
-  { id: 1, name: 'Apple', price: 50, image: '/apple.png' },
-  { id: 2, name: 'Banana', price: 30, image: '/banana.png' },
-  { id: 3, name: 'Milk', price: 45, image: '/milk.png' },
-]);
+// --- State ---
+const products = ref<Product[]>([]);
+const featuredProducts = ref<Product[]>([]);
+const loading = ref(true);
+const API_BASE = "http://localhost:8080/api/products"; // Public endpoint
 
-// Featured products (for horizontal scroll)
-const featuredProducts = ref<Product[]>([
-  { id: 4, name: 'Orange', price: 60, image: '/orange.png' },
-  { id: 5, name: 'Bread', price: 40, image: '/bread.png' },
-  { id: 6, name: 'Cheese', price: 120, image: '/cheese.png' },
-  { id: 4, name: 'Orange', price: 60, image: '/orange.png' },
-  { id: 5, name: 'Bread', price: 40, image: '/bread.png' },
-  { id: 6, name: 'Cheese', price: 120, image: '/cheese.png' },
-  { id: 4, name: 'Orange', price: 60, image: '/orange.png' },
-  { id: 5, name: 'Bread', price: 40, image: '/bread.png' },
-  { id: 6, name: 'Cheese', price: 120, image: '/cheese.png' },
-  { id: 4, name: 'Orange', price: 60, image: '/orange.png' },
-  { id: 5, name: 'Bread', price: 40, image: '/bread.png' },
-  { id: 6, name: 'Cheese', price: 120, image: '/cheese.png' },
-]);
+// --- API Functions ---
+async function fetchHomeData() {
+  loading.value = true;
+  try {
+    // 1. Featured Products load karo
+    const featuredRes = await axios.get(`${API_BASE}/featured`);
+    featuredProducts.value = featuredRes.data;
+
+    // 2. All Active Products load karo (Grid ke liye)
+    const productsRes = await axios.get(`${API_BASE}/getProducts`, {
+      params: { size: 12 } // Pehle 12 products dikhao
+    });
+    // Agar backend Page object bhej raha hai toh .content use karein
+    products.value = productsRes.data.content || productsRes.data;
+  } catch (error) {
+    console.error("Error loading products:", error);
+  } finally {
+    loading.value = false;
+  }
+}
 
 // Inject cart operations from Applayout
 const cart = inject("cart") as any;
@@ -53,123 +58,99 @@ function decrease(product: Product) {
 function remove(product: Product) {
   removeAll(product);
 }
+// Full path for images (Backend storage path)
+function getImageUrl(url: string) {
+  return url ? `http://localhost:8080${url}` : '/placeholder.png';
+}
+onMounted(() => {
+  fetchHomeData();
+});
 </script>
 
 <template>
   <div class="home-container">
-    <!-- Featured Products Section -->
-    <section class="featured-section">
-      <h2 class="section-title">🌟 Featured Products</h2>
-      <v-slide-group show-arrows class="featured-slider">
-        <v-slide-item
-          v-for="product in featuredProducts"
-          :key="product.id"
-          class="featured-card"
-        >
-          <img :src="product.image" class="product-image" @click="$router.push({name:'ProductDetail', params: {id: product.id}})"/>
-          <h3 @click="$router.push({name:'ProductDetail', params: {id: product.id}})">{{ product.name }}</h3>
-          <p>₹{{ product.price }}</p>
-          <div v-if="cartItem(product)" class="cart-controls">
-            <v-btn size="small" icon color="red" @click="decrease(product)">
-              <v-icon>mdi-minus</v-icon>
-            </v-btn>
-            <span>{{ cartItem(product).quantity }}</span>
-            <v-btn size="small" icon color="green" @click="increase(product)">
-              <v-icon>mdi-plus</v-icon>
-            </v-btn>
-            <v-btn size="small" icon color="error" @click="remove(product)">
-              <v-icon>mdi-delete</v-icon>
-            </v-btn>
-          </div>
-          <v-btn v-else color="primary" @click.stop="addToCart(product)">
-            Add to Cart
-          </v-btn>
-        </v-slide-item>
+    <v-progress-linear v-if="loading" indeterminate color="primary" class="mb-4"></v-progress-linear>
+
+    <section v-if="featuredProducts.length > 0" class="featured-section">
+      <h2 class="section-title text-high-emphasis mb-4">🌟 Featured Products</h2>
+      <v-slide-group show-arrows class="featured-slider pb-4">
+        <v-slide-group-item v-for="product in featuredProducts" :key="product.id">
+          <v-card class="featured-card ma-2" width="220" elevation="2" rounded="lg">
+            <v-img 
+              :src="getImageUrl(product.imageUrl)" 
+              height="160" 
+              cover 
+              class="cursor-pointer"
+              @click="$router.push({name:'ProductDetail', params: {id: product.id}})"
+            />
+            <v-card-text class="text-center pt-2">
+              <div class="text-subtitle-1 font-weight-bold">{{ product.name }}</div>
+              <div class="text-primary font-weight-black">₹{{ product.price }}</div>
+            </v-card-text>
+            
+            <v-card-actions class="justify-center pb-4">
+              <div v-if="cartItem(product)" class="d-flex align-center gap-2">
+                <v-btn size="x-small" icon color="error" variant="tonal" @click="removeFromCart(product)"><v-icon>mdi-minus</v-icon></v-btn>
+                <span class="font-weight-bold">{{ cartItem(product).quantity }}</span>
+                <v-btn size="x-small" icon color="success" variant="tonal" @click="addToCart(product)"><v-icon>mdi-plus</v-icon></v-btn>
+              </div>
+              <v-btn v-else color="primary" variant="flat" size="small" rounded @click="addToCart(product)">
+                Add to Cart
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-slide-group-item>
       </v-slide-group>
     </section>
 
-    <!-- Regular Product Grid -->
-    <section class="product-grid-section">
-      <h2>All Products</h2>
-      <div class="product-grid">
-        <div class="product-card" v-for="product in products" :key="product.id">
-          <img :src="product.image" class="product-image" @click="$router.push({name:'ProductDetail', params: {id: product.id}})"/>
-          <h3 @click="$router.push({name:'ProductDetail', params: {id: product.id}})">{{ product.name }}</h3>
-          <p>₹{{ product.price }}</p>
-          <div v-if="cartItem(product)" class="cart-controls">
-            <v-btn size="small" color="red" icon @click="decrease(product)">
-              <v-icon>mdi-minus</v-icon>
-            </v-btn>
-            <span>{{ cartItem(product).quantity }}</span>
-            <v-btn size="small" color="green" icon @click="increase(product)">
-              <v-icon>mdi-plus</v-icon>
-            </v-btn>
-            <v-btn size="small" color="error" icon @click="remove(product)">
-              <v-icon>mdi-delete</v-icon>
-            </v-btn>
-          </div>
-          <v-btn v-else color="primary" @click.stop="addToCart(product)">
-            Add to Cart
-          </v-btn>
-        </div>
+    <section class="product-grid-section mt-6">
+      <h2 class="text-h5 font-weight-bold text-high-emphasis mb-4">All Products</h2>
+      <v-row v-if="products.length > 0">
+        <v-col v-for="product in products" :key="product.id" cols="12" sm="6" md="4" lg="3">
+          <v-card elevation="1" rounded="lg" class="product-card-main">
+            <v-img 
+              :src="getImageUrl(product.imageUrl)" 
+              height="180" 
+              cover
+              @click="$router.push({name:'ProductDetail', params: {id: product.id}})"
+            />
+            <v-card-title class="text-subtitle-1 pb-0">{{ product.name }}</v-card-title>
+            <v-card-subtitle class="text-primary font-weight-bold">₹{{ product.price }}</v-card-subtitle>
+            
+            <v-card-actions class="pa-4">
+              <div v-if="cartItem(product)" class="d-flex align-center justify-space-between w-100">
+                <v-btn size="small" icon color="error" @click="removeFromCart(product)"><v-icon>mdi-minus</v-icon></v-btn>
+                <span class="text-h6">{{ cartItem(product).quantity }}</span>
+                <v-btn size="small" icon color="success" @click="addToCart(product)"><v-icon>mdi-plus</v-icon></v-btn>
+              </div>
+              <v-btn v-else block color="primary" variant="elevated" @click="addToCart(product)">
+                Add to Cart
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-col>
+      </v-row>
+      <div v-else-if="!loading" class="text-center pa-10 text-grey">
+        No products found.
       </div>
     </section>
   </div>
 </template>
 
 <style scoped>
-.home-container {
-  padding: 16px;
-}
-
-/* Featured Products */
-.featured-section {
-  margin-bottom: 32px;
-}
-.featured-slider {
-  display: flex;
-  gap: 16px;
-}
 .featured-card {
-  min-width: 180px;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  padding: 12px;
-  text-align: center;
-  background: white;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.3s ease;
 }
 .featured-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transform: scale(1.05);
 }
-
-.product-image {
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
+.product-card-main {
+  transition: box-shadow 0.3s;
 }
-.cart-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 8px 0;
+.product-card-main:hover {
+  box-shadow: 0 4px 15px rgba(0,0,0,0.15) !important;
 }
-
-/* Product Grid */
-.product-grid-section h2 {
-  margin-bottom: 16px;
-}
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px,1fr));
-  gap: 16px;
-}
-.product-card {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 12px;
-  text-align: center;
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

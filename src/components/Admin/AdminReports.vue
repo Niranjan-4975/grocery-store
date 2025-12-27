@@ -1,120 +1,215 @@
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale, BarElement, PointElement } from 'chart.js';
-import { Line, Bar } from 'vue-chartjs';
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
 
-ChartJS.register(Title, Tooltip, Legend, LineElement, BarElement, CategoryScale, LinearScale, PointElement);
-
-// --- Mock Data ---
-const totalSales = ref(1250);
-const totalOrders = ref(320);
-const totalRevenue = ref(75200);
-
-// Line Chart
-const lineChartData = ref({
-  labels: ["Jan", "Feb", "Mar", "Apr", "May"],
-  datasets: [
-    {
-      label: "Sales",
-      data: [120, 150, 180, 200, 170],
-      borderColor: "#3f51b5",
-      backgroundColor: "rgba(63, 81, 181, 0.2)",
-      tension: 0.4
-    }
-  ]
+// --- State ---
+const stats = ref<any>({
+  lowStockProducts: [],
+  bestSellers: []
 });
-const lineChartOptions = ref({
-  responsive: true,
-  maintainAspectRatio: false
+const loading = ref(false);
+const token = localStorage.getItem('token');
+const API_URL = 'http://localhost:8080/api/admin';
+
+// --- Range Selector State (Added for Logic Consistency) ---
+const rangeOptions = [
+  { title: 'Last 7 Days', value: '7' },
+  { title: 'Last 15 Days', value: '15' },
+  { title: 'Last Month', value: '30' },
+  { title: 'Custom Range', value: 'custom' }
+];
+const selectedRange = ref('7');
+const showCustomPicker = ref(false);
+const customDates = ref({ start: '', end: '' });
+
+// Fetch Reports Data
+async function loadReportData(days = '7', start = '', end = '') {
+  loading.value = true;
+  try {
+    const res = await axios.get(`${API_URL}/dashboard/stats`, {
+      headers: { "user-payload": token },
+      params: { range: days, startDate: start, endDate: end }
+    });
+    stats.value = res.data;
+  } catch (error) {
+    console.error("Failed to load report data", error);
+  } finally {
+    loading.value = false;
+  }
+}
+
+// Handle range change
+function onRangeChange() {
+  if (selectedRange.value === 'custom') {
+    showCustomPicker.value = true;
+  } else {
+    loadReportData(selectedRange.value);
+  }
+}
+
+function applyCustomRange() {
+  if (customDates.value.start && customDates.value.end) {
+    showCustomPicker.value = false;
+    loadReportData('custom', customDates.value.start, customDates.value.end);
+  }
+}
+
+onMounted(() => {
+  loadReportData();
 });
 
-// Bar Chart
-const barChartData = ref({
-  labels: ["Fruits", "Vegetables", "Dairy", "Bakery"],
-  datasets: [
-    {
-      label: "Stock",
-      data: [50, 80, 30, 60],
-      backgroundColor: ["#3f51b5", "#e91e63", "#ff9800", "#4caf50"]
-    }
-  ]
-});
-const barChartOptions = ref({
-  responsive: true,
-  maintainAspectRatio: false
-});
+// PDF Export Logic
+async function downloadPDF() {
+  try {
+    const response = await axios.get(`${API_URL}/dashboard/reports/export-full`, {
+      headers: { "user-payload": token },
+      params: { 
+        range: selectedRange.value,
+        startDate: customDates.value.start,
+        endDate: customDates.value.end
+      },
+      responseType: 'blob',
+    });
 
-const lowStockProducts = ref([
-  { name: 'Bread', stock: 5 },
-  { name: 'Milk', stock: 10 },
-  { name: 'Butter', stock: 2 },
-]);
-
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    // Dynamic filename based on range
+    const filename = selectedRange.value === 'custom' 
+      ? `Report_${customDates.value.start}_to_${customDates.value.end}.pdf`
+      : `Business_Report_Last_${selectedRange.value}_Days.pdf`;
+      
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    alert("Error generating full report PDF. Ensure the backend ReportService is running.");
+  }
+}
 </script>
 
 <template>
   <v-container fluid>
-    <!-- Cards -->
+    <v-row class="mb-4 align-center">
+      <v-col cols="12" md="6">
+        <h2 class="text-h5 font-weight-bold text-high-emphasis mb-4">Business Reports</h2>
+      </v-col>
+      <v-col cols="12" md="6" class="d-flex justify-md-end align-center gap-2">
+        <div style="width: 200px;" class="mr-2">
+          <v-select
+            v-model="selectedRange"
+            :items="rangeOptions"
+            label="Report Period"
+            density="compact"
+            variant="outlined"
+            hide-details
+            @update:model-value="onRangeChange"
+          ></v-select>
+        </div>
+        <v-btn 
+          color="success" 
+          prepend-icon="mdi-download" 
+          variant="elevated" 
+          @click="downloadPDF"
+          :loading="loading"
+        >
+          Export PDF
+        </v-btn>
+      </v-col>
+    </v-row>
+
     <v-row>
-      <v-col cols="12" md="4">
-        <v-card color="primary" dark>
-          <v-card-title>Total Sales</v-card-title>
-          <v-card-text class="text-h4">{{ totalSales }}</v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-card color="success" dark>
-          <v-card-title>Total Orders</v-card-title>
-          <v-card-text class="text-h4">{{ totalOrders }}</v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="12" md="4">
-        <v-card color="orange darken-1" dark>
-          <v-card-title>Total Revenue</v-card-title>
-          <v-card-text class="text-h4">₹ {{ totalRevenue }}</v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Charts -->
-    <v-row class="mt-5">
-      <v-col cols="12" md="6">
-        <v-card>
-          <v-card-title>Sales Over Time</v-card-title>
-          <v-card-text>
-            <Line :data="lineChartData" :options="lineChartOptions" style="height:300px" />
-          </v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="12" md="6">
-        <v-card>
-          <v-card-title>Best-selling Products</v-card-title>
-          <v-card-text>
-            <Bar :data="barChartData" :options="barChartOptions" style="height:300px" />
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Low Stock Products -->
-    <v-row class="mt-5">
       <v-col cols="12">
-        <v-card>
-          <v-card-title>Low Stock Products</v-card-title>
-          <v-card-text>
-            <v-data-table :items="lowStockProducts" :headers="[
-              { text: 'Product Name', value: 'name' },
-              { text: 'Stock', value: 'stock' }
-            ]" dense></v-data-table>
-          </v-card-text>
+        <v-card elevation="1" rounded="lg">
+          <v-card-title class="bg-grey-lighten-4 py-3 font-weight-bold">
+            <v-icon start color="error">mdi-alert-circle</v-icon>
+            Low Stock Inventory Report
+          </v-card-title>
+          <v-data-table
+            :items="stats.lowStockProducts"
+            :loading="loading"
+            :headers="[
+              { title: 'Product Name', key: 'name' },
+              { title: 'Category', key: 'category' },
+              { title: 'Current Stock', key: 'stock' },
+              { title: 'Action Status', key: 'status', sortable: false }
+            ]"
+            hover
+          >
+            <template #item.stock="{ item }">
+              <v-chip :color="item.stock < 5 ? 'red' : 'orange'" variant="flat" size="small">
+                {{ item.stock }} units left
+              </v-chip>
+            </template>
+            <template #item.status>
+              <v-chip color="error" variant="tonal" size="x-small" class="font-weight-bold">
+                REPLENISH REQUIRED
+              </v-chip>
+            </template>
+          </v-data-table>
         </v-card>
       </v-col>
     </v-row>
+
+    <v-row class="mt-6">
+      <v-col cols="12">
+        <v-card elevation="1" rounded="lg">
+          <v-card-title class="bg-grey-lighten-4 py-3 font-weight-bold">
+            <v-icon start color="success">mdi-trending-up</v-icon>
+            Performance: Best Selling Products
+          </v-card-title>
+          <v-data-table
+            :items="stats.bestSellers"
+            :loading="loading"
+            :headers="[
+              { title: 'Product Name', key: 'product' },
+              { title: 'Total Quantity Sold', key: 'soldQuantity' },
+              { title: 'Sales Performance', key: 'performance', sortable: false },
+            ]"
+            hover
+          >
+            <template #item.performance="{ item }">
+              <div class="d-flex align-center">
+                <v-progress-linear 
+                  :model-value="item.soldQuantity" 
+                  max="100" 
+                  height="10" 
+                  color="success" 
+                  rounded 
+                  class="mr-2"
+                ></v-progress-linear>
+                <span class="text-caption font-weight-bold">{{ item.soldQuantity }}</span>
+              </div>
+            </template>
+          </v-data-table>
+        </v-card>          
+      </v-col>
+    </v-row>
+
+    <v-dialog v-model="showCustomPicker" max-width="400">
+      <v-card rounded="lg">
+        <v-card-title class="bg-primary text-white">Select Custom Dates</v-card-title>
+        <v-card-text class="pt-4">
+          <v-text-field v-model="customDates.start" type="date" label="Start Date" variant="outlined" density="compact" class="mb-4"></v-text-field>
+          <v-text-field v-model="customDates.end" type="date" label="End Date" variant="outlined" density="compact"></v-text-field>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="showCustomPicker = false">Cancel</v-btn>
+          <v-btn color="primary" variant="elevated" @click="applyCustomRange">Fetch Report</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
 <style scoped>
 .v-card {
-  padding: 16px;
+  padding: 0; /* Changed from 16px to 0 for better data-table integration */
+}
+.gap-2 {
+  gap: 8px;
 }
 </style>

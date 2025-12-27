@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 
 // API Constants
@@ -15,6 +15,10 @@ const updatedStatus = ref('');
 const selected = ref<number[]>([]); 
 const search = ref('');
 
+// Pagination State
+const page = ref(1);
+const itemsPerPage = ref(10);
+const totalOrders = ref(0);
 // --- Status Options ---
 const statusOptions = ['PENDING', 'PROCESSING', 'SHIPPED', 'OUTFORDELIVERY', 'DELIVERED', 'CANCELLED'];
 
@@ -38,14 +42,24 @@ async function fetchOrders() {
   try {
     const response = await axios.get(`${API_BASE_URL}/all`, {
       headers: { "user-payload": token },
+      params: {
+        page: page.value - 1,
+        size: itemsPerPage.value,
+        search: search.value
+      }
     });
-    orders.value = response.data;
+    orders.value = response.data.content;
+    totalOrders.value = response.data.totalElements;
   } catch (error) {
     console.error('Error fetching orders:', error);
   } finally {
     loading.value = false;
   }
 }
+watch(search,() => {
+  page.value = 1;
+  fetchOrders();
+});
 
 // 2. Single Update
 async function updateOrderStatus() {
@@ -53,14 +67,11 @@ async function updateOrderStatus() {
   try {
     const url = `${API_BASE_URL}/${selectedOrder.value.id}/status?status=${updatedStatus.value}`;
     const response = await axios.patch(url, {}, {
-      headers: { "user-payload": token },
+      headers: { "user-payload": token }
     });
     if (response.status === 200) {
-      const index = orders.value.findIndex(o => o.id === selectedOrder.value?.id);
-      if (index !== -1 && orders.value[index]) {
-        orders.value[index].status = updatedStatus.value;
-      }
       dialog.value = false;
+      fetchOrders();
       alert("Order status updated successfully!");
     }
   } catch (error) {
@@ -71,20 +82,13 @@ async function updateOrderStatus() {
 // 3. Bulk Update
 async function bulkUpdate(newStatus: string) {
   if (selected.value.length === 0) return;
-  
   try {
     const payload = { ids: selected.value, status: newStatus };
     await axios.patch(`${API_BASE_URL}/bulk-status`, payload, {
-      headers: { "user-payload": token },
+      headers: { "user-payload": token }
     });
-    
-    orders.value.forEach(order => {
-      if (selected.value.includes(order.id)) {
-        order.status = newStatus;
-      }
-    });
-    
     selected.value = []; 
+    fetchOrders();
     alert("Bulk update successful!");
   } catch (error) {
     alert("Bulk update failed.");
@@ -111,24 +115,21 @@ function statusColor(status: string) {
   }
 }
 
-const filteredOrders = computed(() => {
-  const term = search.value.toLowerCase();
-  return orders.value.filter(order => {
-    return (
-      order.id.toString().includes(term) ||
-      order.user.fullName.toLowerCase().includes(term) ||
-      order.paymentMethod.toLowerCase().includes(term) ||
-      order.status.toLowerCase().includes(term)
-    );
-  });
-});
+const headers = [
+  { title: 'ID', key: 'id' },
+  { title: 'Customer', key: 'user.fullName' },
+  { title: 'Payment', key: 'paymentMethod' },
+  { title: 'Total Amount', key: 'totalAmount' },
+  { title: 'Status', key: 'status' },
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+];
 </script>
 
 <template>
   <v-container fluid>
     <v-row class="mb-4 align-center">
       <v-col cols="12" class="d-flex justify-space-between align-center">
-        <h2 class="text-h5 font-weight-bold">Order Management</h2>
+        <h2 class="text-h5 font-weight-bold text-high-emphasis mb-4">Order Management</h2>
         <v-chip color="primary" variant="tonal" label>Total Orders: {{ orders.length }}</v-chip>
       </v-col>
     </v-row>
@@ -145,34 +146,28 @@ const filteredOrders = computed(() => {
         ></v-text-field>
       </v-col>
       <v-col cols="12" md="8" v-if="selected.length > 0">
-        <v-card color="blue-lighten-5" class="pa-1 d-flex align-center border">
+        <v-card color="blue-lighten-5" class="pa-1 d-flex align-center border rounded-lg">
           <span class="mx-4 text-subtitle-2 text-blue-darken-3 font-weight-bold">{{ selected.length }} selected</span>
           <v-spacer></v-spacer>
-          <span class="text-caption mr-2">Bulk Status Update:</span>
-          <v-btn v-for="status in statusOptions" :key="status" size="x-small" 
-            class="ma-1" color="primary" @click="bulkUpdate(status)">
-            {{ status }}
-          </v-btn>
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn color="primary" v-bind="props" size="small" append-icon="mdi-chevron-down">Bulk Action</v-btn>
+            </template>
+            <v-list density="compact">
+              <v-list-item v-for="status in statusOptions" :key="status" @click="bulkUpdate(status)">
+                <v-list-item-title>{{ status }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
         </v-card>
       </v-col>
     </v-row>
 
     <v-card elevation="1">
-      <v-data-table
-        v-model="selected"
-        show-select
-        item-value="id"
-        :items="filteredOrders"
-        :loading="loading"
-        hover
-        :headers="[
-          { title: 'ID', key: 'id' },
-          { title: 'Customer', key: 'user.fullName' },
-          { title: 'Payment', key: 'paymentMethod' },
-          { title: 'Total Amount', key: 'totalAmount' },
-          { title: 'Status', key: 'status' },
-          { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
-        ]"
+      <v-data-table-server v-model="selected" v-model:page="page" v-model:items-per-page="itemsPerPage"
+        :items-length="totalOrders" :headers="headers"
+        :items="orders" :loading="loading" :search="search"
+        @update:options="fetchOrders" show-select hover
       >
         <template #item.totalAmount="{ item }">
           ₹{{ item.totalAmount?.toFixed(2) }}
@@ -197,7 +192,7 @@ const filteredOrders = computed(() => {
             </v-tooltip>
           </div>
         </template>
-      </v-data-table>
+      </v-data-table-server>
     </v-card>
 
     <v-dialog v-model="dialog" max-width="500px">

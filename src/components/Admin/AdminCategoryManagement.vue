@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 
 // API Configuration
@@ -18,9 +18,14 @@ interface Category {
 // --- State ---
 const categories = ref<Category[]>([]);
 const loading = ref(false);
-const search = ref(""); // ✅ Added for search logic
+const search = ref("");
 const dialog = ref(false);
 const isEdit = ref(false);
+
+// Pagination State
+const page = ref(1);
+const itemsPerPage = ref(10);
+const totalItems = ref(0);
 
 const form = ref<Category>({
   id: 0,
@@ -34,9 +39,15 @@ async function fetchCategories() {
   loading.value = true;
   try {
     const response = await axios.get(API_URL, {
-      headers: { "user-payload": token }
+      headers: { "user-payload": token },
+      params: {
+        page: page.value - 1,
+        size: itemsPerPage.value,
+        search: search.value
+      }
     });
-    categories.value = response.data;
+    categories.value = response.data.content;
+    totalItems.value = response.data.totalElements;
   } catch (error) {
     console.error("Error fetching categories", error);
     alert("Failed to load categories");
@@ -44,6 +55,10 @@ async function fetchCategories() {
     loading.value = false;
   }
 }
+watch(search, () => {
+  page.value = 1;
+  fetchCategories();
+});
 
 // --- Logic Functions ---
 function openAddDialog() {
@@ -63,13 +78,11 @@ async function saveCategory() {
     alert("Category name is required.");
     return;
   }
-  
   const payload = {
     name: form.value.name,
     description: form.value.description,
     status: form.value.status
   };
-
   try {
     if (isEdit.value && form.value.id) {
       await axios.put(`${API_URL}/${form.value.id}`, payload, {
@@ -106,7 +119,7 @@ onMounted(fetchCategories);
   <v-container fluid>
     <v-row class="mb-4 align-center">
       <v-col cols="12" class="d-flex justify-space-between align-center">
-        <h2 class="text-h5 font-weight-bold">Category Management</h2>
+        <h2 class="text-h5 font-weight-bold text-high-emphasis mb-4">Category Management</h2>
         <v-btn color="primary" prepend-icon="mdi-plus" @click="openAddDialog">Add Category</v-btn>
       </v-col>
     </v-row>
@@ -125,10 +138,10 @@ onMounted(fetchCategories);
     </v-row>
 
     <v-card elevation="1">
-      <v-data-table 
-        :items="categories" 
+      <v-data-table-server v-model:page="page" v-model:items-per-page="itemsPerPage"
+        :items="categories" :items-length="totalItems" :items-per-page-options="[10,25,50]"
         :search="search"
-        hover 
+        hover @update:options="fetchCategories"
         :loading="loading"
         :headers="[
           { title: 'Name', key: 'name' },
@@ -138,11 +151,7 @@ onMounted(fetchCategories);
         ]"
       >
         <template #item.status="{ item }">
-          <v-chip 
-            :color="item.status === 'ACTIVE' ? 'green' : 'red'" 
-            size="small" 
-            variant="flat"
-          >
+          <v-chip :color="item.status === 'ACTIVE' ? 'green' : 'red'" size="small" variant="flat">
             {{ item.status }}
           </v-chip>
         </template>
@@ -174,7 +183,7 @@ onMounted(fetchCategories);
             </template>
           </v-tooltip>
         </template>
-      </v-data-table>
+      </v-data-table-server>
     </v-card>
 
     <v-dialog v-model="dialog" max-width="500px">
