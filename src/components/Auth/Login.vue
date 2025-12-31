@@ -2,7 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "../../composables/useAuth";
-import axios from 'axios';
+import api from "../../axios";
 
 
 const router = useRouter();
@@ -115,7 +115,7 @@ async function handleSignup() {
   }
   try{
     //3. Make the API Call
-    const response = await axios.post('http://localhost:8080/api/auth/register',payload);
+    const response = await api.post('/auth/register',payload);
     //4. Sucess
     console.log("Signup Response: ", response.data);
     alert("Signup Successful!!");

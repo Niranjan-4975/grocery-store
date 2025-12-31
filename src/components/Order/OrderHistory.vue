@@ -66,10 +66,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, inject } from "vue";
-import axios from "axios";
-
-const API_BASE_URL = "http://localhost:8080/api/orders";
-const token = localStorage.getItem("token");
+import api from "../../axios";
 
 // Update orders ref to be empty initially
 const orders = ref<any[]>([]);
@@ -81,9 +78,7 @@ const addToCart = inject("addToCart") as any;
 async function fetchOrders() {
   loading.value = true;
   try {
-    const response = await axios.get(`${API_BASE_URL}/my-orders`, {
-      headers: { "user-payload": token },
-    });
+    const response = await api.get(`/orders/my-orders`);
     orders.value = response.data;
   } catch (error) {
     console.error("Error fetching orders:", error);

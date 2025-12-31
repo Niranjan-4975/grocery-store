@@ -2,10 +2,18 @@
 import { onMounted } from "vue";
 import { RouterView } from "vue-router";
 import { useAuth } from "./composables/useAuth";
+import { useTheme } from "vuetify";
 
 const { loading, initAuth } = useAuth();
+const theme = useTheme();
 
 onMounted(()=>{
+  const savedTheme = localStorage.getItem('app_theme');
+  if (savedTheme) {
+    theme.global.name.value = savedTheme;
+  } else {
+    theme.global.name.value = 'light';
+  }
   initAuth();
 });
 </script>

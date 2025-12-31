@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import axios from 'axios';
-
-// API Constants
-const API_BASE_URL = 'http://localhost:8080/api/admin/orders';
-const token = localStorage.getItem('token');
+import api from '../../axios';
 
 // --- Reactive State ---
 const orders = ref<Order[]>([]);
@@ -40,8 +36,7 @@ interface Order {
 async function fetchOrders() {
   loading.value = true;
   try {
-    const response = await axios.get(`${API_BASE_URL}/all`, {
-      headers: { "user-payload": token },
+    const response = await api.get(`/admin/orders/all`, {
       params: {
         page: page.value - 1,
         size: itemsPerPage.value,
@@ -56,19 +51,24 @@ async function fetchOrders() {
     loading.value = false;
   }
 }
-watch(search,() => {
+let debounceTimer: any = null;
+watch(search, (val) => {
+  clearTimeout(debounceTimer);
   page.value = 1;
-  fetchOrders();
+  if (!val){
+    fetchOrders();
+    return;
+  }
+  debounceTimer = setTimeout(() => { fetchOrders();
+  }, 500);
 });
 
 // 2. Single Update
 async function updateOrderStatus() {
   if (!selectedOrder.value || !updatedStatus.value) return;
   try {
-    const url = `${API_BASE_URL}/${selectedOrder.value.id}/status?status=${updatedStatus.value}`;
-    const response = await axios.patch(url, {}, {
-      headers: { "user-payload": token }
-    });
+    const url = `/admin/orders/${selectedOrder.value.id}/status?status=${updatedStatus.value}`;
+    const response = await api.patch(url);
     if (response.status === 200) {
       dialog.value = false;
       fetchOrders();
@@ -84,9 +84,7 @@ async function bulkUpdate(newStatus: string) {
   if (selected.value.length === 0) return;
   try {
     const payload = { ids: selected.value, status: newStatus };
-    await axios.patch(`${API_BASE_URL}/bulk-status`, payload, {
-      headers: { "user-payload": token }
-    });
+    await api.patch(`/admin/orders/bulk-status`, payload);
     selected.value = []; 
     fetchOrders();
     alert("Bulk update successful!");
@@ -166,7 +164,7 @@ const headers = [
     <v-card elevation="1">
       <v-data-table-server v-model="selected" v-model:page="page" v-model:items-per-page="itemsPerPage"
         :items-length="totalOrders" :headers="headers"
-        :items="orders" :loading="loading" :search="search"
+        :items="orders" :loading="loading"
         @update:options="fetchOrders" show-select hover
       >
         <template #item.totalAmount="{ item }">

@@ -1,11 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import axios from 'axios';
-
-// ... existing constants ...
-const API_URL = 'http://localhost:8080/api/admin/products'; 
-const CATEGORY_API_URL = 'http://localhost:8080/api/admin/categories';
-const token = localStorage.getItem('token');
+import api from '../../axios';
 
 // --- Data Structures ---
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | 'DELETED' | 'SUSPENDED';
@@ -49,8 +44,7 @@ async function fetchProducts(){
   if(loading.value) return;
   loading.value = true;
   try{
-      const response = await axios.get(`${API_URL}`, {
-          headers: { "user-payload": token },
+      const response = await api.get(`/admin/products`, {
           params: {
               page: page.value - 1,
               size: itemsPerPage.value,
@@ -65,17 +59,23 @@ async function fetchProducts(){
       loading.value = false;
     }
 }
-watch(search, () => {
-  page.value = 1; // Reset to first page on search
-  fetchProducts();
+let debounceTimer: any = null;
+watch(search, (val) => {
+  clearTimeout(debounceTimer);
+  page.value = 1;
+  if (!val){
+    fetchProducts();
+    return;
+  }
+  debounceTimer = setTimeout(() => {
+    fetchProducts();
+  }, 500);
 });
 
 async function fetchCategories(){
   try {
-        const response = await axios.get(CATEGORY_API_URL, {
-            headers: { "user-payload": token }
-        });
-        categories.value = response.data.map((c: any) => ({
+        const response = await api.get(`/admin/categories`);
+        categories.value = response.data.content.map((c: any) => ({
                 title: c.name,
                 value: c.id,
             }));
@@ -122,22 +122,16 @@ async function saveProduct() {
   };
   try {
     if (isUpdating) {
-      const response = await axios.put(`${API_URL}/${productForm.value.id}`, jsonPayload, {
-                      headers: { "user-payload": token }
-      });
+      const response = await api.put(`/admin/products/${productForm.value.id}`, jsonPayload);
       savedProduct = response.data;
     } else {
-      const response = await axios.post(`${API_URL}`, jsonPayload, {
-        headers: { "user-payload": token }
-      });
+      const response = await api.post(`/admin/products`, jsonPayload);
       savedProduct = response.data;
     }
     if (fileToUpload.value && savedProduct) {
       const formData = new FormData();
       formData.append('file', fileToUpload.value);
-      await axios.post(`${API_URL}/images/product/${savedProduct.id}`, formData, {
-        headers: { "user-payload": token }
-      });
+      await api.post(`/admin/products/images/product/${savedProduct.id}`, formData);
     }
     dialog.value = false;
     await fetchProducts();     
@@ -178,9 +172,7 @@ function handleFileChange(event: Event){
 async function deleteProduct(product: any) {
     if (!confirm(`Are you sure you want to delete product: ${product.name}?`)) return;
     try {
-        await axios.delete(`${API_URL}/${product.id}`, {
-            headers: { "user-payload": token }
-        });
+        await api.delete(`/admin/products/${product.id}`);
         await fetchProducts();
     } catch (error) {
         alert("Failed to delete product.");
@@ -222,7 +214,6 @@ onMounted(() => {
         v-model:items-per-page="itemsPerPage"
         :items="products"
         :items-length="totalItems"
-        :search="search"
         :loading="loading"
         :items-per-page-options="[10,25,50,100]"
         @update:options="fetchProducts"

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject, ref, computed, onMounted } from "vue";
-import axios from "axios";
+import api from "../../axios";
 
 interface Product {
   id: number;
@@ -19,7 +19,7 @@ const loading = ref(false);
 async function fetchProducts() {
   loading.value = true;
   try {
-    const response = await axios.get("http://localhost:8080/api/products/getProducts");
+    const response = await api.get("/products/getProducts");
     products.value = response.data.content || response.data;
   } catch (error) {
     console.error("Error fetching products:", error);
@@ -65,7 +65,7 @@ const categories = ref<string[]>(["All"]);
 // Populate categories based on products
 async function fetchCategories() {
   try{
-    const response = await axios.get("http://localhost:8080/api/categories");
+    const response = await api.get("/categories");
     const backendCats = response.data.map((c: any) => c.name);
     categories.value = ["All", ...backendCats];
   } catch (error) {

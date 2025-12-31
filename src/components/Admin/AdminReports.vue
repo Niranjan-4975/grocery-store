@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import axios from 'axios';
+import api from '../../axios';
 
 // --- State ---
 const stats = ref<any>({
@@ -8,8 +8,6 @@ const stats = ref<any>({
   bestSellers: []
 });
 const loading = ref(false);
-const token = localStorage.getItem('token');
-const API_URL = 'http://localhost:8080/api/admin';
 
 // --- Range Selector State (Added for Logic Consistency) ---
 const rangeOptions = [
@@ -26,8 +24,7 @@ const customDates = ref({ start: '', end: '' });
 async function loadReportData(days = '7', start = '', end = '') {
   loading.value = true;
   try {
-    const res = await axios.get(`${API_URL}/dashboard/stats`, {
-      headers: { "user-payload": token },
+    const res = await api.get(`/admin/dashboard/stats`, {
       params: { range: days, startDate: start, endDate: end }
     });
     stats.value = res.data;
@@ -61,9 +58,8 @@ onMounted(() => {
 // PDF Export Logic
 async function downloadPDF() {
   try {
-    const response = await axios.get(`${API_URL}/dashboard/reports/export-full`, {
-      headers: { "user-payload": token },
-      params: { 
+    const response = await api.get(`/admin/dashboard/reports/export-full`, {
+      params: {
         range: selectedRange.value,
         startDate: customDates.value.start,
         endDate: customDates.value.end

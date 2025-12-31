@@ -74,7 +74,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted} from "vue";
 import { useAuth } from "../../composables/useAuth";
-import axios from "axios";
+import api from "../../axios";
 
 const loading = ref(true);
 const saving = ref(false);
@@ -102,17 +102,9 @@ const userInitials = computed(() =>
 
 //1. Fetch Profile (GET /user/me)
 onMounted(async () => {
-  const token = localStorage.getItem('token');
-  if(!token) {
-    handleLogout();
-    return;
-  }
-
   try {
     // We use the standard 'Authorization' header
-    const response = await axios.get("http://localhost:8080/api/users/me", {
-      headers: { "user-payload": token }
-    });
+    const response = await api.get("/users/me");
     // Map backend fields
     const data = response.data;
     userName.value = data.fullName;
@@ -123,6 +115,7 @@ onMounted(async () => {
     userPincode.value = data.pinCode || ""
   } catch (error) {
       console.error("Fetch Error", error);
+      logout();
       // Optional: fail silently or show error
   } finally {
       loading.value = false;
@@ -132,7 +125,6 @@ onMounted(async () => {
 // --- 2. UPDATE PROFILE (PUT /user/update-profile) ---
 const saveEdit = async () => {
   saving.value = true;
-  const token = localStorage.getItem('token');
   try {
     // ⚠️ PAYLOAD MUST MATCH 'UpdateUserRequest.java'
     const payload = {
@@ -143,9 +135,7 @@ const saveEdit = async () => {
       city: editedCity.value,
       pinCode: editedPincode.value 
     };
-    await axios.put("http://localhost:8080/api/users/update-profile", payload, {
-      headers: { "user-payload": token }
-    });
+    await api.put("/users/update-profile", payload);
     // Update UI immediately
     userName.value = editedName.value;
     userEmail.value = editedEmail.value;

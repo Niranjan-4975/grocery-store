@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import axios from 'axios';
-
-const token = localStorage.getItem('token');   
+import api from '../../axios';
+   
 // --- State ---
 const users = ref<any[]>([]);
 const loading = ref(false);
@@ -49,8 +48,7 @@ function getStatusColor(status: string) {
 async function fetchUsers() {
   loading.value = true;
   try {
-    const response = await axios.get('http://localhost:8080/api/admin/getusers', {
-      headers: { "user-payload": token },
+    const response = await api.get('/admin/getusers', {
       params: {
         page: page.value - 1,
         size: itemsPerPage.value,
@@ -66,16 +64,23 @@ async function fetchUsers() {
     loading.value = false;
   }
 }
-watch(search, () => {
+let debounceTimer: any = null;
+watch(search, (val) => {
+  clearTimeout(debounceTimer);
   page.value = 1;
-  fetchUsers();
+  if (!val){
+    fetchUsers();
+    return;
+  }
+  debounceTimer = setTimeout(() => {
+    fetchUsers();
+  }, 600);
 });
 
 // 2. Toggle Status (Block / Activate)
 async function toggleStatus(user: any) {
     if (user.accountStatus === 'DELETED') return;
     
-    const token = localStorage.getItem('token'); 
     const isActivating = user.accountStatus !== 'ACTIVE';
     const newStatus = isActivating ? 'ACTIVE' : 'INACTIVE';
     const actionVerb = isActivating ? 'Activate' : 'Deactivate';
@@ -83,9 +88,8 @@ async function toggleStatus(user: any) {
     if(!confirm(`Are you sure you want to ${actionVerb} this user?`)) return;
 
     try {
-        await axios.patch(`http://localhost:8080/api/admin/users/${user.id}`, 
-            { accountStatus: newStatus },
-            { headers: { "user-payload": token } }
+        await api.patch(`/admin/users/${user.id}`, 
+            { accountStatus: newStatus } 
         );
         user.accountStatus = newStatus;
         alert(`User updated to ${newStatus}`);
@@ -106,9 +110,8 @@ function openRoleDialog(user: any) {
 async function updateRole() {
     if(!selectedUser.value) return;
     try {
-        await axios.patch(`http://localhost:8080/api/admin/users/${selectedUser.value.id}`,
-            { roles: [selectedRole.value] }, 
-            { headers: { "user-payload": token } }
+        await api.patch(`/admin/users/${selectedUser.value.id}`,
+            { roles: [selectedRole.value] }
         );
         alert("Role Updated Successfully");
         roleDialog.value = false;
@@ -135,9 +138,7 @@ async function handleCreateUser() {
             pinCode: newUser.value.pinCode,
             roles: [newUser.value.role] 
         };
-        await axios.post('http://localhost:8080/api/admin/create-user', payload, {
-            headers: { "user-payload": token }
-        }); 
+        await api.post('/admin/create-user', payload); 
         alert("User created successfully!");
         createUserDialog.value = false;
         newUser.value = { fullName: '', email: '', password: '', mobile: '', addressLine: '', city: '', pinCode: '', role: 'ROLE_CUSTOMER' };
@@ -153,9 +154,7 @@ async function viewPurchaseHistory(user: any) {
     loadingOrders.value = true;
     userOrders.value = [];
     try {
-        const response = await axios.get(`http://localhost:8080/api/admin/orders/user/${user.id}`, {
-            headers: { "user-payload": token }
-        });
+        const response = await api.get(`/admin/orders/user/${user.id}`);
         userOrders.value = response.data;
     } catch (error) {
         alert("Failed to fetch order history");
@@ -206,7 +205,7 @@ const headers = [
       <v-data-table-server
         v-model:page="page" v-model:items-per-page="itemsPerPage" :headers="headers" 
         :items="users" :items-length="totalUsers"
-        :search="search" :loading="loading" @update:options="fetchUsers" hover>
+        :loading="loading" @update:options="fetchUsers" hover>
         <template #item.roles="{ item }">
           <v-chip color="blue-lighten-1" text-color="blue-darken-4" size="x-small" class="mr-1 font-weight-bold" v-for="role in item.roles" :key="role">
             {{ role.name || role }}

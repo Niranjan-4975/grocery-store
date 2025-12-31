@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch} from 'vue';
 import { useTheme } from 'vuetify';
-import axios from 'axios';
+import api from '../../axios';
 // ✅ Import component directly to ensure it's registered
 import VueApexCharts from "vue3-apexcharts";
 
@@ -20,8 +20,6 @@ const stats = ref<any>({
   bestSellers: []
 });
 const loading = ref(true);
-const token = localStorage.getItem('token');
-const API_URL = 'http://localhost:8080/api/admin';
 
 // --- New Reactive State ---
 const rangeOptions = [
@@ -93,8 +91,7 @@ const bestSellerOptions = computed(() => ({
 async function fetchStats(days = '7', startDate = null, endDate = null) {
   loading.value = true;
   try {
-    const response = await axios.get(`${API_URL}/dashboard/stats`, {
-      headers: { "user-payload": token },
+    const response = await api.get(`/admin/dashboard/stats`, {
       params: { 
         range: days,
         startDate: startDate,

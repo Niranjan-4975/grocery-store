@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { ref, inject, computed } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
-
-
-const token = localStorage.getItem("token");
-const API_BASE_URL = "http://localhost:8080/api/orders";
+import api from "../../axios";
 
 interface Product {
   id: number;
@@ -65,9 +61,7 @@ async function confirmOrder() {
   };
   try {
     //2. Send order to backend
-    const response = await axios.post(`${API_BASE_URL}/place`, orderPayload, {
-      headers: { "user-payload": token },
-    });
+    const response = await api.post(`/orders/place`, orderPayload);
     if (response.status === 201 || response.status === 200) {
       alert(`✅ Order Confirmed! Order ID: ${response.data.id}`);
       cart.value = []; // Clear cart locally

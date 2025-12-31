@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import axios from 'axios';
+import api from '../../axios';
 
-// API Configuration
-const API_URL = 'http://localhost:8080/api/admin/categories';
-const token = localStorage.getItem('token');
 
 type CategoryStatus = 'ACTIVE' | 'INACTIVE';
 
@@ -35,14 +32,19 @@ const form = ref<Category>({
 });
 
 // --- API Functions ---
-async function fetchCategories() {
+async function fetchCategories(options: any = {}) {
+  // ✅ 1. Check if page is NaN, if yes use 1.
+  const currentPage = options.page !== undefined ? options.page : (page.value - 1);
+  const pageSize = options.itemsPerPage || itemsPerPage.value;
+
+  // Stop if page is invalid
+  if (isNaN(currentPage) || currentPage < 0) return;
   loading.value = true;
   try {
-    const response = await axios.get(API_URL, {
-      headers: { "user-payload": token },
+    const response = await api.get(`/admin/categories`, {
       params: {
-        page: page.value - 1,
-        size: itemsPerPage.value,
+        page: currentPage,
+        size: pageSize,
         search: search.value
       }
     });
@@ -55,9 +57,17 @@ async function fetchCategories() {
     loading.value = false;
   }
 }
-watch(search, () => {
+let debounceTimer: any = null;
+watch(search, (val) => {
+  clearTimeout(debounceTimer);
   page.value = 1;
-  fetchCategories();
+  if (!val){
+    fetchCategories();
+    return;
+  }
+  debounceTimer = setTimeout(() => {
+    fetchCategories();
+  }, 500);
 });
 
 // --- Logic Functions ---
@@ -85,14 +95,10 @@ async function saveCategory() {
   };
   try {
     if (isEdit.value && form.value.id) {
-      await axios.put(`${API_URL}/${form.value.id}`, payload, {
-        headers: { "user-payload": token }
-      });
+      await api.put(`/admin/categories/${form.value.id}`, payload);
     } else {
-      await axios.post(API_URL, payload, {
-        headers: { "user-payload": token }
-      });
-    }
+      await api.post(`/admin/categories`, payload);
+    };
     dialog.value = false;
     await fetchCategories();
   } catch (error: any) {
@@ -103,9 +109,7 @@ async function saveCategory() {
 async function deleteCategory(category: Category) {
   if (!confirm(`Are you sure you want to delete category: ${category.name}?`)) return;
   try {
-    await axios.delete(`${API_URL}/${category.id}`, {
-      headers: { "user-payload": token }
-    });
+    await api.delete(`/admin/categories/${category.id}`);
     await fetchCategories();
   } catch (error: any) {
     alert(`Failed to delete: ${error.response?.data?.message || "Operation failed."}`);
@@ -139,8 +143,7 @@ onMounted(fetchCategories);
 
     <v-card elevation="1">
       <v-data-table-server v-model:page="page" v-model:items-per-page="itemsPerPage"
-        :items="categories" :items-length="totalItems" :items-per-page-options="[10,25,50]"
-        :search="search"
+        :items="categories" :items-length="totalItems"
         hover @update:options="fetchCategories"
         :loading="loading"
         :headers="[

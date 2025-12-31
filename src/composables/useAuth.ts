@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import axios from "axios";
+import api from "../axios";
 
 // ✅ Singleton reactive state
 const isAuthenticated = ref(false);
@@ -36,11 +37,7 @@ export function useAuth() {
     user.value = JSON.parse(savedUser);
     try {
         // 2. Call the backend's fast validation endpoint
-        const response = await axios.get('http://localhost:8080/api/auth/check', {
-            headers: { 
-                "user-payload": savedToken 
-            }
-        });
+        const response = await api.get('/auth/check');
         // 3. SUCCESS: If the backend returns 200 OK, the token is valid and active.
         // The backend response body contains { email: "...", roles: ["..."] }
         // We ensure isAuthenticated is true and update user state with fresh data
@@ -69,7 +66,7 @@ export function useAuth() {
 async function login(username: string, password: string): Promise<{ success: boolean; role?: string; error?:string;}> {
   try{
     //Call Spring Boot Endpoint
-    const response = await axios.post('http://localhost:8080/api/auth/login', {
+    const response = await api.post('/auth/login', {
       email: username,
       password: password
     });
@@ -100,6 +97,7 @@ async function login(username: string, password: string): Promise<{ success: boo
   function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("app_theme");
     token.value = null;
     user.value = null;
     isAuthenticated.value = false;

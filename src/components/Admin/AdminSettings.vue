@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import axios from 'axios';
 import { useTheme } from 'vuetify';
+import api from '../../axios';
 
 const theme = useTheme();
-const API_URL = 'http://localhost:8080/api/admin/settings';
-const token = localStorage.getItem('token');
 const loading = ref(false);
 
 const settings = ref({
@@ -38,7 +36,7 @@ function applyTheme(isDark: boolean, color: string) {
 
 async function loadSettings() {
     try {
-        const res = await axios.get(API_URL, { headers: { "user-payload": token } });
+        const res = await api.get(`/admin/settings`,);
         if (res.data) {
             settings.value = { ...settings.value, ...res.data };
             settings.value.selectedPaymentMethods = res.data.paymentMethods || [];
@@ -58,8 +56,7 @@ async function saveSettings() {
             paymentMethods: settings.value.selectedPaymentMethods,
             deliveryOptions: settings.value.selectedDeliveryOptions
         };
-        await axios.put(API_URL, payload, { headers: { "user-payload": token } });
-        
+        await api.put(`/admin/settings`, payload,);
         applyTheme(settings.value.darkMode, settings.value.primaryColor);
         alert('Settings & Theme Applied Globally!');
     } catch (error) { alert('Failed to save settings'); }
