@@ -72,6 +72,10 @@ async function confirmOrder() {
     alert(`Failed to place order: ${error.response?.data?.message || 'Check console'}`);
   }
 }
+
+function getImageUrl(url: string) {
+  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
+}
 </script>
 
 <template>
@@ -82,8 +86,7 @@ async function confirmOrder() {
       <v-col cols="12" md="8">
         <v-card v-for="item in cart" :key="item.id" class="cart-item mb-4" variant="outlined">
           <div class="d-flex align-center pa-3">
-            <v-img :src="item.imageUrl ? `http://localhost:8080${item.imageUrl}` : '/placeholder.png'"
-             cover class="rounded-lg mr-4">
+            <v-img :src="getImageUrl(item.imageUrl)" cover class="rounded-lg mr-4">
             </v-img>
             <div class="flex-grow-1 item-info">
               <h3 class="text-subtitle-1 font-weight-bold">{{ item.name }}</h3>

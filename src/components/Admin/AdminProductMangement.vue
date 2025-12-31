@@ -99,7 +99,7 @@ function openEditDialog(product: any) {
       categoryId: product.category ? product.category.id : product.categoryId
   }));
   fileToUpload.value = null;
-  previewUrl.value = product.imageUrl ? `http://localhost:8080${product.imageUrl}` : ''; 
+  previewUrl.value = product.imageUrl ? `${import.meta.env.VITE_IMAGE_API_URL}${product.imageUrl}` : ''; 
   dialog.value = true;
 }
 
@@ -150,7 +150,7 @@ function openPreview() {
     if (fileToUpload.value) {
         currentImagePreview.value = previewUrl.value; 
     } else if (productForm.value.imageUrl) {
-        currentImagePreview.value = `http://localhost:8080${productForm.value.imageUrl}`;
+        currentImagePreview.value = `${import.meta.env.VITE_IMAGE_API_URL}${productForm.value.imageUrl}`;
     } else {
         alert("No image selected to preview.");
         return;
@@ -165,7 +165,7 @@ function handleFileChange(event: Event){
   if (file) {
       previewUrl.value = URL.createObjectURL(file);
   } else {
-      previewUrl.value = productForm.value.imageUrl ? `http://localhost:8080${productForm.value.imageUrl}` : '';
+      previewUrl.value = productForm.value.imageUrl ? `${import.meta.env.VITE_IMAGE_API_URL}${productForm.value.imageUrl}` : '';
   }
 }
 
@@ -183,6 +183,10 @@ onMounted(() => {
     fetchProducts();
     fetchCategories();
 });
+
+function getImageUrl(url: string) {
+  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
+}
 </script>
 
 <template>
@@ -237,7 +241,7 @@ onMounted(() => {
 
         <template #item.imageUrl="{item}">
           <v-img 
-            :src="item.imageUrl ? `http://localhost:8080${item.imageUrl}` : '/placeholder.png'"
+            :src="getImageUrl(item.imageUrl)"
             height="40" 
             width="40" 
             cover 

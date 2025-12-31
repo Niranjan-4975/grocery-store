@@ -84,6 +84,10 @@ const filteredProducts = computed(() => {
     return matchesCategory && matchesSearch;
   });
 });
+
+function getImageUrl(url: string) {
+  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
+}
 </script>
 
 <template>
@@ -109,7 +113,7 @@ const filteredProducts = computed(() => {
     <div class="product-grid">
       <div class="product-card" v-for="product in filteredProducts" :key="product.id">
         <v-img
-          :src="product.imageUrl ? `http://localhost:8080${product.imageUrl}` : '/placeholder.png'"
+          :src="getImageUrl(product.imageUrl)"
           height="150"
           cover
           class="product-image rounded-lg mb-3"

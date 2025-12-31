@@ -71,7 +71,7 @@ function cartItem(p: Product) {
 }
 
 function getImageUrl(url: string) {
-  return url ? `http://localhost:8080${url}` : '/placeholder.png';
+  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
 }
 
 // Navigate back

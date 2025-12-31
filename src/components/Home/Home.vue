@@ -50,7 +50,7 @@ function decrease(product: Product) { removeFromCart(product); }
 function remove(product: Product) { removeAll(product); }
 
 function getImageUrl(url: string) {
-  return url ? `http://localhost:8080${url}` : '/placeholder.png';
+  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
 }
 
 onMounted(fetchHomeData);
