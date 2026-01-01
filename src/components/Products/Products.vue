@@ -1,26 +1,37 @@
 <script setup lang="ts">
-import { inject, ref, computed } from "vue";
+import { inject, ref, computed, onMounted } from "vue";
+import api from "../../axios";
 
 interface Product {
   id: number;
   name: string;
   price: number;
-  image: string;
-  category: string;
+  imageUrl: string;
+  category: { name: string };
   quantity?: number;
 }
 
 // Sample product list
-const products = ref<Product[]>([
-  { id: 1, name: 'Apple', price: 50, image: '/apple.png', category: 'Fruits' },
-  { id: 2, name: 'Banana', price: 30, image: '/banana.png', category: 'Fruits' },
-  { id: 3, name: 'Milk', price: 45, image: '/milk.png', category: 'Dairy' },
-  { id: 4, name: 'Bread', price: 40, image: '/bread.png', category: 'Bakery' },
-  { id: 5, name: 'Cheese', price: 120, image: '/cheese.png', category: 'Dairy' },
-  { id: 6, name: 'Chicken', price: 250, image: '/chicken.png', category: 'Meat' },
-  { id: 7, name: 'Carrot', price: 20, image: '/carrot.png', category: 'Vegetables' },
-]);
+const products = ref<Product[]>([]);
+const loading = ref(false);
 
+// Fetch products from API (replace with real API endpoint)
+async function fetchProducts() {
+  loading.value = true;
+  try {
+    const response = await api.get("/products/getProducts");
+    products.value = response.data.content || response.data;
+  } catch (error) {
+    console.error("Error fetching products:", error);
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(() => {
+  fetchProducts();
+  fetchCategories();
+});
 // Inject cart functions
 const cart = inject("cart") as any;
 const addToCart = inject("addToCart") as any;
@@ -49,35 +60,40 @@ const search = ref("");
 const selectedCategory = ref("All");
 
 // Available categories
-const categories = ref<string[]>([
-  "All",
-  "Fruits",
-  "Vegetables",
-  "Dairy",
-  "Bakery",
-  "Meat",
-  "Beverages",
-  "Snacks",
-  "Frozen Foods",
-  "Household Items"
-]);
+const categories = ref<string[]>(["All"]);
+
+// Populate categories based on products
+async function fetchCategories() {
+  try{
+    const response = await api.get("/categories");
+    const backendCats = response.data.map((c: any) => c.name);
+    categories.value = ["All", ...backendCats];
+  } catch (error) {
+    console.error("Error fetching products for categories:", error);
+  }
+}
 
 // Computed filtered products
 const filteredProducts = computed(() => {
   return products.value.filter((product) => {
     const matchesCategory =
-      selectedCategory.value === "All" || product.category === selectedCategory.value;
+      selectedCategory.value === "All" || 
+      (product.category && product.category.name === selectedCategory.value);
     const matchesSearch =
       product.name.toLowerCase().includes(search.value.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 });
+
+function getImageUrl(url: string) {
+  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
+}
 </script>
 
 <template>
   <div class="products-container">
+    <v-progress-linear v-if="loading" indeterminate color="primary"></v-progress-linear>
     <h2>Products</h2>
-
     <!-- Filters -->
     <div class="filters">
       <v-text-field
@@ -96,10 +112,24 @@ const filteredProducts = computed(() => {
     <!-- Products Grid -->
     <div class="product-grid">
       <div class="product-card" v-for="product in filteredProducts" :key="product.id">
-        <img :src="product.image" class="product-image" @click="$router.push({name:'ProductDetail', params: {id: product.id}})"/>
-        <h3 @click="$router.push({name:'ProductDetail', params: {id: product.id}})">{{ product.name }}</h3>
-        <p>₹{{ product.price }}</p>
-        <p class="category-label">{{ product.category }}</p>
+        <v-img
+          :src="getImageUrl(product.imageUrl)"
+          height="150"
+          cover
+          class="product-image rounded-lg mb-3"
+          @click="$router.push({name:'ProductDetail', params: {id: product.id}})"
+        >
+          <template v-slot:placeholder>
+            <v-row class="fill-height ma-0" align="center" justify="center">
+              <v-progress-circular indeterminate color="grey lighten-5"></v-progress-circular>
+            </v-row>
+          </template>
+        </v-img>
+        <h3 class="cursor-pointer" @click="$router.push({name:'ProductDetail', params: {id: product.id}})">
+          {{ product.name }}
+        </h3>
+        <p class="text-primary font-weight-bold">₹{{ product.price }}</p>
+        <p class="category-label">{{ product.category?.name || 'Uncategorized' }}</p>
         <div v-if="cartItem(product)" class="cart-controls">
           <v-btn size="small" color="red" icon @click="decrease(product)">
             <v-icon>mdi-minus</v-icon>

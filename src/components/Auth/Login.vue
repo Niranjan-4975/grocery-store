@@ -2,11 +2,13 @@
 import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "../../composables/useAuth";
+import api from "../../axios";
 
 
 const router = useRouter();
 const { login } = useAuth();
 const activeTab = ref("login");
+const isSubmitting = ref(false);
 
 // ---------------- Login form state ----------------
 const loginUsername = ref("");
@@ -19,17 +21,37 @@ function validateLogin() {
   if (!loginPassword.value.trim()) loginErrors.value.password = "Password required";
   return Object.keys(loginErrors.value).length === 0;
 }
-function handleLogin() {
+
+// ✅ NEW STATE FOR CUSTOM DIALOG
+const showStatusDialog = ref(false);
+const statusDialogMessage = ref("");
+const statusDialogTitle = ref("")
+
+async function handleLogin() {
   if (!validateLogin()) return;
-  const result = login(loginUsername.value, loginPassword.value);
-  console.log("value of result", result)
+  isSubmitting.value = true;
+  const result = await login(loginUsername.value, loginPassword.value);
+  // Now we can check result safely
+  console.log("value of result", result);
   if (!result.success) {
-    alert("Invalid credentials!");
+    const errorMessage = result.error || "Login failed.";
+    // 1. Check for the specific disabled account message
+    if (errorMessage.includes("Account is currently")) {
+        statusDialogTitle.value = "Access Denied";
+        statusDialogMessage.value = "Your account is currently inactive or suspended for security reasons. Please contact the store for assistance.";
+        showStatusDialog.value = true; 
+        loginErrors.value = {}; // Clear standard errors
+    } else {
+        // 2. Standard bad credentials error
+        loginErrors.value.username = errorMessage;
+        loginErrors.value.password = errorMessage; // Display error under both fields
+    }
+    isSubmitting.value = false;
     return;
   }
   console.log("handleLogin called")
-  // Redirect based on role
-  if (result.role === "admin") {
+  const roleString = String(result.role);
+  if (roleString.includes("ROLE_ADMIN") || roleString.includes("[ROLE_ADMIN]")) {
     router.push("/admin").catch(()=>{});
     console.log("Role checked!! -- admin")
   }else{
@@ -39,26 +61,77 @@ function handleLogin() {
 }
 
 // ---------------- Signup form state ----------------
-const signupEmail = ref("");
+const signupEmail = ref(""); 
 const signupUsername = ref("");
 const signupPassword = ref("");
+const signupMobile = ref("");
+const signupAddress = ref("");
+const signupCity = ref("");
+const signupPin = ref("");
 const signupConfirm = ref("");
-const signupErrors = ref<{ email?: string; username?: string; password?: string; confirm?: string }>({});
+const signupErrors = ref<{ email?: string; username?: string; password?: string; 
+  confirm?: string; mobile?: string; address?: string; city?: string; pin?: string;}>({});
 
 function validateSignup() {
   signupErrors.value = {};
+
   if (!signupEmail.value.trim()) signupErrors.value.email = "Email required";
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signupEmail.value)) signupErrors.value.email = "Invalid email";
+
   if (!signupUsername.value.trim()) signupErrors.value.username = "Username required";
   if (!signupPassword.value) signupErrors.value.password = "Password required";
   if (signupConfirm.value !== signupPassword.value) signupErrors.value.confirm = "Passwords must match";
+
+  if(!signupMobile.value){
+     signupErrors.value.mobile = "Mobile No Required";
+    } else if (!/^\d{10}$/.test(signupMobile.value)){
+     signupErrors.value.mobile = "Mobile must be 10 digits";
+  }
+
+  if (!signupAddress.value || !signupAddress.value.trim()){ signupErrors.value.address = "Address required";}
+  if (!signupCity.value || !signupCity.value.trim()){ signupErrors.value.city = "City required"}
+  if (!signupPin.value) {
+    signupErrors.value.pin = "Pincode required";
+  } else if (!/^\d{6}$/.test(signupPin.value)) {
+    // ^\d{6}$ checks for exactly 6 digits. Adjust to 5 if using US Zip codes.
+    signupErrors.value.pin = "Pincode must be 6 digits";
+  }
   return Object.keys(signupErrors.value).length === 0;
 }
-function handleSignup() {
-  if (!validateSignup()) return;
-  // fake signup success
-  alert("Signup successful! Please login.");
-  activeTab.value = "login";
+
+async function handleSignup() {
+  //1. Validation
+  if (!validateSignup()) return; //Stop here if errors
+  //2. Start Loading
+  isSubmitting.value = true;
+  const payload = {
+    fullName: signupUsername.value,
+    email: signupEmail.value,
+    password: signupPassword.value,
+    mobile: signupMobile.value,
+    addressLine: signupAddress.value,
+    city: signupCity.value,
+    pinCode: signupPin.value
+  }
+  try{
+    //3. Make the API Call
+    const response = await api.post('/auth/register',payload);
+    //4. Sucess
+    console.log("Signup Response: ", response.data);
+    alert("Signup Successful!!");
+
+    activeTab.value = "login";
+  }catch (error: any){
+    console.error(error);
+    if (error.response && error.response.data) {
+        alert("Signup Failed: " + (error.response.data.message || "Unknown error"));
+    } else {
+        alert("Network error. Is Spring Boot running?");
+    }
+  }finally {
+    // 6. Stop Loading
+    isSubmitting.value = false;
+  }
 }
 </script>
 
@@ -77,7 +150,7 @@ function handleSignup() {
           <v-form @submit.prevent="handleLogin">
             <v-text-field
               v-model="loginUsername"
-              label="Email or Username"
+              label="Email"
               prepend-inner-icon="mdi-account"
               outlined dense
               :error="Boolean(loginErrors.username)"
@@ -90,7 +163,7 @@ function handleSignup() {
               prepend-inner-icon="mdi-lock"
               outlined dense
               :error="Boolean(loginErrors.password)"
-              :error-messages="loginErrors.password ? [loginErrors.password] : []"
+              :error-messages="loginErrors.password && !loginErrors.username? [loginErrors.password] : []"
             />
             <v-btn type="submit" color="primary" block class="mt-4">Login</v-btn>
           </v-form>
@@ -99,6 +172,14 @@ function handleSignup() {
         <v-window-item value="signup">
           <h2 class="text-h5 mb-4">Create Account</h2>
           <v-form @submit.prevent="handleSignup">
+            <v-text-field
+              v-model="signupUsername"
+              label="Username"
+              prepend-inner-icon="mdi-account"
+              outlined dense
+              :error="Boolean(signupErrors.username)"
+              :error-messages="signupErrors.username ? [signupErrors.username] : []"
+            />
             <v-text-field
               v-model="signupEmail"
               label="Email"
@@ -109,14 +190,6 @@ function handleSignup() {
               :error-messages="signupErrors.email ? [signupErrors.email] : []"
             />
             <v-text-field
-              v-model="signupUsername"
-              label="Username"
-              prepend-inner-icon="mdi-account"
-              outlined dense
-              :error="Boolean(signupErrors.username)"
-              :error-messages="signupErrors.username ? [signupErrors.username] : []"
-            />
-            <v-text-field
               v-model="signupPassword"
               type="password"
               label="Password"
@@ -124,6 +197,40 @@ function handleSignup() {
               outlined dense
               :error="Boolean(signupErrors.password)"
               :error-messages="signupErrors.password ? [signupErrors.password] : []"
+            />
+            <v-text-field
+              v-model="signupMobile"
+              label="Mobile No"
+              prepend-inner-icon="mdi-cellphone"
+              outlined dense
+              type="tel"
+              :error="Boolean(signupErrors.mobile)"
+              :error-messages="signupErrors.mobile ? [signupErrors.mobile] : []"
+            />
+            <v-text-field
+              v-model="signupAddress"
+              label="Address Line"
+              prepend-inner-icon="mdi-map-marker"
+              outlined dense
+              :error="Boolean(signupErrors.address)"
+              :error-messages="signupErrors.address ? [signupErrors.address] : []"
+            />
+            <v-text-field
+              v-model="signupCity"
+              label="City"
+              prepend-inner-icon="mdi-city"
+              outlined dense
+              :error="Boolean(signupErrors.city)"
+              :error-messages="signupErrors.city ? [signupErrors.city] : []"
+            />
+            <v-text-field
+              v-model="signupPin"
+              label="Pincode"
+              prepend-inner-icon="mdi-map-marker-radius"
+              outlined dense
+              type="number"
+              :error="Boolean(signupErrors.pin)"
+              :error-messages="signupErrors.pin ? [signupErrors.pin] : []"
             />
             <v-text-field
               v-model="signupConfirm"
@@ -139,6 +246,23 @@ function handleSignup() {
         </v-window-item>
       </v-window>
     </v-card>
+    <v-dialog v-model="showStatusDialog" max-width="450">
+      <v-card>
+        <v-card-title class="text-h5 error--text">
+          <v-icon color="error" class="mr-2">mdi-alert-circle-outline</v-icon>
+          {{ statusDialogTitle }}
+        </v-card-title>
+        <v-card-text class="pt-4">
+          {{ statusDialogMessage }}
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+            <v-btn color="primary" text @click="showStatusDialog = false">
+            Close
+            </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
