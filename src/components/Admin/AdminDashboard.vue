@@ -125,8 +125,8 @@ onMounted(() => {
     <v-row class="mb-6">
       <v-col cols="12" sm="6" md="3" v-for="(value, label) in { 
         'REVENUE': '₹' + stats.totalRevenue.toLocaleString(), 
-        'ORDERS': stats.totalOrders, 
-        'PENDING': stats.pendingOrders, 
+        'TOTAL ORDERS': stats.totalOrders, 
+        'ORDERS PENDING': stats.pendingOrders, 
         'ITEMS SOLD': stats.totalSales 
       }" :key="label">
         <v-card elevation="2" class="rounded-lg pa-3 border-s-xl border-primary shadow-sm">
