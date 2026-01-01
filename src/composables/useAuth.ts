@@ -1,7 +1,6 @@
 // composables/useAuth.ts
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import axios from "axios";
 import api from "../axios";
 
 // ✅ Singleton reactive state
