@@ -104,15 +104,13 @@ const userInitials = computed(() =>
 onMounted(async () => {
   try {
     // We use the standard 'Authorization' header
-    const response = await api.get("/users/me");
-    // Map backend fields
-    const data = response.data;
-    userName.value = data.fullName;
-    userEmail.value = data.email;
-    userPhone.value = data.mobile;
-    userAddress.value = data.addressLine;
-    userCity.value = data.city || "";
-    userPincode.value = data.pinCode || ""
+    const response: any = await api.get("/users/me");
+    userName.value = response.fullName;
+    userEmail.value = response.email;
+    userPhone.value = response.mobile;
+    userAddress.value = response.addressLine;
+    userCity.value = response.city || "";
+    userPincode.value = response.pinCode || ""
   } catch (error) {
       console.error("Fetch Error", error);
       logout();
@@ -143,11 +141,9 @@ const saveEdit = async () => {
     userAddress.value = editedAddress.value;
     userCity.value = editedCity.value;
     userPincode.value = editedPincode.value;
-    alert("Profile updated successfully!");
     editDialog.value = false;
   } catch (error) {
-    console.error("Update Error", error);
-    alert("Failed to update profile.");
+    return { success: false};
   } finally {
     saving.value = false;
   }

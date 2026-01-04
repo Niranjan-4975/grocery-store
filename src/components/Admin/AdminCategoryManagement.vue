@@ -33,23 +33,19 @@ const form = ref<Category>({
 
 // --- API Functions ---
 async function fetchCategories(options: any = {}) {
-  // ✅ 1. Check if page is NaN, if yes use 1.
-  const currentPage = options.page !== undefined ? options.page : (page.value - 1);
   const pageSize = options.itemsPerPage || itemsPerPage.value;
 
-  // Stop if page is invalid
-  if (isNaN(currentPage) || currentPage < 0) return;
   loading.value = true;
   try {
-    const response = await api.get(`/admin/categories`, {
+    const response: any = await api.get(`/admin/categories`, {
       params: {
-        page: currentPage,
+        page: page.value - 1,
         size: pageSize,
         search: search.value
       }
     });
-    categories.value = response.data.content;
-    totalItems.value = response.data.totalElements;
+    categories.value = response.content;
+    totalItems.value = response.totalElements;
   } catch (error) {
     console.error("Error fetching categories", error);
     alert("Failed to load categories");

@@ -48,7 +48,7 @@ function getStatusColor(status: string) {
 async function fetchUsers() {
   loading.value = true;
   try {
-    const response = await api.get('/admin/getusers', {
+    const response: any = await api.get('/admin/getusers', {
       params: {
         page: page.value - 1,
         size: itemsPerPage.value,
@@ -56,10 +56,10 @@ async function fetchUsers() {
         sort: 'fullName,asc' 
       }
     });
-    users.value = response.data.content;
-    totalUsers.value = response.data.totalElements;
+    users.value = response.content;
+    totalUsers.value = response.totalElements;
   } catch (error){
-    console.error("Error fetching users", error);
+    return { success: false, message: "Failed to fetch users" };
   } finally {
     loading.value = false;
   }
@@ -154,8 +154,8 @@ async function viewPurchaseHistory(user: any) {
     loadingOrders.value = true;
     userOrders.value = [];
     try {
-        const response = await api.get(`/admin/orders/user/${user.id}`);
-        userOrders.value = response.data;
+        const response: any = await api.get(`/admin/orders/user/${user.id}`);
+        userOrders.value = response;
     } catch (error) {
         alert("Failed to fetch order history");
     } finally {

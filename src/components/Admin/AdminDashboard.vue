@@ -2,7 +2,6 @@
 import { ref, onMounted, computed, watch} from 'vue';
 import { useTheme } from 'vuetify';
 import api from '../../axios';
-// ✅ Import component directly to ensure it's registered
 import VueApexCharts from "vue3-apexcharts";
 
 const theme = useTheme();
@@ -91,16 +90,16 @@ const bestSellerOptions = computed(() => ({
 async function fetchStats(days = '7', startDate = null, endDate = null) {
   loading.value = true;
   try {
-    const response = await api.get(`/admin/dashboard/stats`, {
+    const response: any = await api.get(`/admin/dashboard/stats`, {
       params: { 
         range: days,
         startDate: startDate,
         endDate: endDate
       }
     });
-    stats.value = response.data;
+    stats.value = response;
   } catch (error) {
-    console.error('Error fetching dashboard data:', error);
+    return { success: false };
   } finally {
     loading.value = false;
   }

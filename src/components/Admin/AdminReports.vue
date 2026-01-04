@@ -27,7 +27,7 @@ async function loadReportData(days = '7', start = '', end = '') {
     const res = await api.get(`/admin/dashboard/stats`, {
       params: { range: days, startDate: start, endDate: end }
     });
-    stats.value = res.data;
+    stats.value = res;
   } catch (error) {
     console.error("Failed to load report data", error);
   } finally {

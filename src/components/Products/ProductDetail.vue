@@ -28,16 +28,15 @@ async function fetchProductDetail() {
   const productId = route.params.id;
   try {
     // 1. Fetch current product detail
-    const response = await api.get(`/products/getProducts/${productId}`);
-    product.value = response.data;
+    const response: any = await api.get(`/products/getProducts/${productId}`);
+    product.value = response;
     
     // 2. Fetch recommendations based on category
     if (product.value && product.value.category) {
       fetchRecommendedProducts();
     }
   } catch (error) {
-    console.error("Error fetching product detail:", error);
-    product.value = null;
+    return { success: false };
   } finally {
     loading.value = false;
   }
@@ -46,18 +45,17 @@ async function fetchProductDetail() {
 async function fetchRecommendedProducts() {
   if (!product.value || !product.value.category) return;
   try {
-    const response = await api.get(`/products/getProducts`, {
+    const response: any = await api.get(`/products/getProducts`, {
       params: { 
-        // ✅ Name search ki jagah ID use karo, ye 100% accurate results dega
         categoryId: product.value.category.id,
         size: 8 
       }
     });
-    const allItems = response.data.content || response.data;
+    const allItems = response.content;
     // Current product ko hata do list se
     recommended.value = allItems.filter((p: Product) => p.id !== product.value?.id);
   } catch (error) {
-    console.error("Error fetching recommended products:", error);
+    return { success: false };
   }
 }
 // --- Helpers ---

@@ -53,7 +53,6 @@ async function handleLogin() {
   const roleString = String(result.role);
   if (roleString.includes("ROLE_ADMIN") || roleString.includes("[ROLE_ADMIN]")) {
     router.push("/admin").catch(()=>{});
-    console.log("Role checked!! -- admin")
   }else{
     console.log("Role checked -- customer")
     router.push("/home").catch(()=>{});
@@ -115,19 +114,12 @@ async function handleSignup() {
   }
   try{
     //3. Make the API Call
-    const response = await api.post('/auth/register',payload);
+    const response: any = await api.post('/auth/register',payload);
     //4. Sucess
-    console.log("Signup Response: ", response.data);
-    alert("Signup Successful!!");
-
+    console.log("Signup Response: ", response);
     activeTab.value = "login";
   }catch (error: any){
-    console.error(error);
-    if (error.response && error.response.data) {
-        alert("Signup Failed: " + (error.response.data.message || "Unknown error"));
-    } else {
-        alert("Network error. Is Spring Boot running?");
-    }
+    return { success: false};
   }finally {
     // 6. Stop Loading
     isSubmitting.value = false;

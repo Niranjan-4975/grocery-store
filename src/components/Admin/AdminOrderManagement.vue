@@ -36,15 +36,15 @@ interface Order {
 async function fetchOrders() {
   loading.value = true;
   try {
-    const response = await api.get(`/admin/orders/all`, {
+    const response: any = await api.get(`/admin/orders/all`, {
       params: {
         page: page.value - 1,
         size: itemsPerPage.value,
         search: search.value
       }
     });
-    orders.value = response.data.content;
-    totalOrders.value = response.data.totalElements;
+    orders.value = response.content;
+    totalOrders.value = response.totalElements;
   } catch (error) {
     console.error('Error fetching orders:', error);
   } finally {
@@ -68,13 +68,10 @@ async function updateOrderStatus() {
   if (!selectedOrder.value || !updatedStatus.value) return;
   try {
     const url = `/admin/orders/${selectedOrder.value.id}/status?status=${updatedStatus.value}`;
-    const response = await api.patch(url);
-    if (response.status === 200) {
-      dialog.value = false;
-      fetchOrders();
-      alert("Order status updated successfully!");
-    }
-  } catch (error) {
+    await api.patch(url);
+    dialog.value = false;
+    fetchOrders();
+  }catch (error) {
     alert('Failed to update order status.');
   }
 }
@@ -87,7 +84,6 @@ async function bulkUpdate(newStatus: string) {
     await api.patch(`/admin/orders/bulk-status`, payload);
     selected.value = []; 
     fetchOrders();
-    alert("Bulk update successful!");
   } catch (error) {
     alert("Bulk update failed.");
   }

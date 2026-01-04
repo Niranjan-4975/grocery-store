@@ -44,15 +44,15 @@ async function fetchProducts(){
   if(loading.value) return;
   loading.value = true;
   try{
-      const response = await api.get(`/admin/products`, {
+      const response: any = await api.get(`/admin/products`, {
           params: {
               page: page.value - 1,
               size: itemsPerPage.value,
               search: search.value
           }
       });
-      products.value = response.data.content;
-      totalItems.value = response.data.totalElements;
+      products.value = response.content;
+      totalItems.value = response.totalElements;
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
@@ -74,8 +74,8 @@ watch(search, (val) => {
 
 async function fetchCategories(){
   try {
-        const response = await api.get(`/admin/categories`);
-        categories.value = response.data.content.map((c: any) => ({
+        const response: any = await api.get(`/admin/categories`);
+        categories.value = response.content.map((c: any) => ({
                 title: c.name,
                 value: c.id,
             }));
