@@ -58,8 +58,7 @@ async function saveSettings() {
         };
         await api.put(`/admin/settings`, payload,);
         applyTheme(settings.value.darkMode, settings.value.primaryColor);
-        alert('Settings & Theme Applied Globally!');
-    } catch (error) { alert('Failed to save settings'); }
+    } catch (error) { console.error }
     finally { loading.value = false; }
 }
 

@@ -103,7 +103,6 @@ const userInitials = computed(() =>
 //1. Fetch Profile (GET /user/me)
 onMounted(async () => {
   try {
-    // We use the standard 'Authorization' header
     const response: any = await api.get("/users/me");
     userName.value = response.fullName;
     userEmail.value = response.email;
@@ -113,8 +112,6 @@ onMounted(async () => {
     userPincode.value = response.pinCode || ""
   } catch (error) {
       console.error("Fetch Error", error);
-      logout();
-      // Optional: fail silently or show error
   } finally {
       loading.value = false;
   }
@@ -124,11 +121,10 @@ onMounted(async () => {
 const saveEdit = async () => {
   saving.value = true;
   try {
-    // ⚠️ PAYLOAD MUST MATCH 'UpdateUserRequest.java'
     const payload = {
       fullName: editedName.value,
       email: editedEmail.value,
-      mobile: editedPhone.value,      // check if Java expects 'mobile' or 'mobileNumber'
+      mobile: editedPhone.value,
       addressLine: editedAddress.value,
       city: editedCity.value,
       pinCode: editedPincode.value 

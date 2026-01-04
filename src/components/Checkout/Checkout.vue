@@ -2,12 +2,11 @@
 import { ref, inject, computed } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../axios";
-import { useToastStore } from "../../stores/toastStore";
+import { useNotify } from "../../composables/useNotify";
 
-const toastStore = useToastStore();
-const alert = (message: string) => {
-  toastStore.showToast(message, "error");
-};
+// Notify composable
+const { notify } = useNotify();
+
 interface Product {
   id: number;
   name: string;
@@ -48,7 +47,7 @@ const total = computed(() => {
 // Confirm order
 async function confirmOrder() {
   if (!shippingAddress.value) {
-    alert("📍 Please enter a shipping address.");
+    notify.warning("📍Please enter a shipping address.");
     return;
   }
   //1. Prepare order payload

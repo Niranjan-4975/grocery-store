@@ -67,12 +67,12 @@
 <script setup lang="ts">
 import { ref, onMounted, inject } from "vue";
 import api from "../../axios";
-import { useToastStore } from "../../stores/toastStore";
+import { useNotify } from "../../composables/useNotify";
 
 // Update orders ref to be empty initially
 const orders = ref<any[]>([]);
 const loading = ref(false);
-const toastStore = useToastStore();
+const { notify } = useNotify();
 
 // Inject cart function for reordering
 const addToCart = inject("addToCart") as any;
@@ -105,7 +105,7 @@ const reorder = (order: any) => {
       addToCart(productToCart);
     }
   });
-  toastStore.showToast(`Added items from Order #${order.id} to your cart!`);
+  notify.success(`Added items from Order #${order.id} to your cart!`);
 };
 
 //Status color mapping

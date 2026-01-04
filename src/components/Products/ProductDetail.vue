@@ -92,7 +92,6 @@ watch(() => route.params.id, fetchProductDetail);
 
     <div v-else-if="product">
       <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="goBack" class="mb-4">Back</v-btn>
-
       <v-row>
         <v-col cols="12" md="5">
           <v-img 
@@ -102,21 +101,17 @@ watch(() => route.params.id, fetchProductDetail);
             cover
           ></v-img>
         </v-col>
-
         <v-col cols="12" md="7" class="pl-md-8">
           <h1 class="text-h4 font-weight-bold mb-2">{{ product.name }}</h1>
           <v-chip color="primary" size="small" variant="tonal" class="mb-4">
             {{ product.category?.name || 'General' }}
           </v-chip>
-          
           <div class="text-h3 font-weight-black text-primary mb-6">
             ₹{{ product.price?.toLocaleString('en-IN') }}
           </div>
-          
           <p class="text-body-1 text-grey-darken-1 mb-8">
             {{ product.description || 'No description available for this product.' }}
           </p>
-
           <div class="cart-action-section border-t pt-6">
             <div v-if="cartItem(product)" class="d-flex align-center gap-4 mb-4">
               <v-btn size="large" color="red" icon elevation="2" @click="removeFromCart(product)">

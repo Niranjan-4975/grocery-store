@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { useAuth } from "../../composables/useAuth";
+import { useAuth} from "../../composables/useAuth";
 import api from "../../axios";
+import { useNotify } from "../../composables/useNotify";
 
 
 const router = useRouter();
 const { login } = useAuth();
+const { notify } = useNotify();
 const activeTab = ref("login");
 const isSubmitting = ref(false);
 
@@ -28,35 +30,21 @@ const statusDialogMessage = ref("");
 const statusDialogTitle = ref("")
 
 async function handleLogin() {
-  if (!validateLogin()) return;
+  if (!validateLogin()) return notify.warning("Please fill in all required fields.");
   isSubmitting.value = true;
   const result = await login(loginUsername.value, loginPassword.value);
-  // Now we can check result safely
   console.log("value of result", result);
-  if (!result.success) {
-    const errorMessage = result.error || "Login failed.";
-    // 1. Check for the specific disabled account message
-    if (errorMessage.includes("Account is currently")) {
-        statusDialogTitle.value = "Access Denied";
-        statusDialogMessage.value = "Your account is currently inactive or suspended for security reasons. Please contact the store for assistance.";
-        showStatusDialog.value = true; 
-        loginErrors.value = {}; // Clear standard errors
-    } else {
-        // 2. Standard bad credentials error
-        loginErrors.value.username = errorMessage;
-        loginErrors.value.password = errorMessage; // Display error under both fields
-    }
-    isSubmitting.value = false;
-    return;
-  }
-  console.log("handleLogin called")
-  const roleString = String(result.role);
-  if (roleString.includes("ROLE_ADMIN") || roleString.includes("[ROLE_ADMIN]")) {
+  if (result.success) {
+    console.log("handleLogin called")
+    const roleString = String(result.role);
+    if (roleString.includes("ROLE_ADMIN") || roleString.includes("[ROLE_ADMIN]")) {
     router.push("/admin").catch(()=>{});
-  }else{
-    console.log("Role checked -- customer")
-    router.push("/home").catch(()=>{});
+    }else{
+      console.log("Role checked -- customer")
+      router.push("/home").catch(()=>{});
+    }
   }
+  isSubmitting.value = false;
 }
 
 // ---------------- Signup form state ----------------
@@ -99,8 +87,7 @@ function validateSignup() {
 }
 
 async function handleSignup() {
-  //1. Validation
-  if (!validateSignup()) return; //Stop here if errors
+  if (!validateSignup()) return notify.warning("Please fill in all required fields.");
   //2. Start Loading
   isSubmitting.value = true;
   const payload = {

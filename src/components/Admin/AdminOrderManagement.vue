@@ -71,9 +71,7 @@ async function updateOrderStatus() {
     await api.patch(url);
     dialog.value = false;
     fetchOrders();
-  }catch (error) {
-    alert('Failed to update order status.');
-  }
+  }catch (error) {}
 }
 
 // 3. Bulk Update
@@ -84,9 +82,7 @@ async function bulkUpdate(newStatus: string) {
     await api.patch(`/admin/orders/bulk-status`, payload);
     selected.value = []; 
     fetchOrders();
-  } catch (error) {
-    alert("Bulk update failed.");
-  }
+  } catch (error) {}
 }
 
 onMounted(fetchOrders);
