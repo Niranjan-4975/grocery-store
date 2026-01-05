@@ -19,10 +19,10 @@ const loading = ref(false);
 async function fetchProducts() {
   loading.value = true;
   try {
-    const response = await api.get("/products/getProducts");
-    products.value = response.data.content || response.data;
+    const response: any = await api.get("/products/getProducts");
+    products.value = response.content;
   } catch (error) {
-    console.error("Error fetching products:", error);
+    return { success: false};
   } finally {
     loading.value = false;
   }
@@ -65,11 +65,11 @@ const categories = ref<string[]>(["All"]);
 // Populate categories based on products
 async function fetchCategories() {
   try{
-    const response = await api.get("/categories");
-    const backendCats = response.data.map((c: any) => c.name);
+    const response: any = await api.get("/categories");
+    const backendCats = response.map((c: any) => c.name);
     categories.value = ["All", ...backendCats];
   } catch (error) {
-    console.error("Error fetching products for categories:", error);
+    return { success: false};
   }
 }
 

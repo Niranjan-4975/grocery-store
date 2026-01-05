@@ -2,6 +2,10 @@
 import { ref, inject, computed } from "vue";
 import { useRouter } from "vue-router";
 import api from "../../axios";
+import { useNotify } from "../../composables/useNotify";
+
+// Notify composable
+const { notify } = useNotify();
 
 interface Product {
   id: number;
@@ -42,12 +46,8 @@ const total = computed(() => {
 
 // Confirm order
 async function confirmOrder() {
-  if (!cart.value.length) {
-    alert("🛒 Your cart is empty!");
-    return;
-  }
   if (!shippingAddress.value) {
-    alert("📍 Please enter a shipping address.");
+    notify.warning("📍Please enter a shipping address.");
     return;
   }
   //1. Prepare order payload
@@ -61,15 +61,11 @@ async function confirmOrder() {
   };
   try {
     //2. Send order to backend
-    const response = await api.post(`/orders/place`, orderPayload);
-    if (response.status === 201 || response.status === 200) {
-      alert(`✅ Order Confirmed! Order ID: ${response.data.id}`);
-      cart.value = []; // Clear cart locally
-      router.push("/orders");
-    }
+    await api.post(`/orders/place`, orderPayload);
+    cart.value = []; // Clear cart locally
+    router.push("/orders");
   } catch (error: any) {
-    console.error("Order Placement Error:", error);
-    alert(`Failed to place order: ${error.response?.data?.message || 'Check console'}`);
+    return { success: false};
   }
 }
 

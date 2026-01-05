@@ -12,10 +12,7 @@ const loading = ref(true);
 export function useAuth() {
   const router = useRouter();
   async function initAuth() {
-    // --- FIX: Skip validation if state is already loaded from the LOGIN function ---
     if (isAuthenticated.value && token.value) {
-        // If the state is already authenticated by the 'login' function, 
-        // we trust it and stop the expensive validation check.
         loading.value = false;
         return; 
     }
@@ -36,7 +33,7 @@ export function useAuth() {
     user.value = JSON.parse(savedUser);
     try {
         // 2. Call the backend's fast validation endpoint
-        const response = await api.get('/auth/check');
+        const response: any = await api.get('/auth/check');
         // 3. SUCCESS: If the backend returns 200 OK, the token is valid and active.
         // The backend response body contains { email: "...", roles: ["..."] }
         // We ensure isAuthenticated is true and update user state with fresh data
@@ -44,19 +41,13 @@ export function useAuth() {
         // Optional: Update user state with fresh roles from the backend response
         user.value = {
             ...user.value,
-            username: response.data.email,
-            email: response.data.email,
-            role: response.data.roles[0].authority // Assuming single primary role, or adjust as needed
+            username: response.email,
+            email: response.email,
+            role: response.roles
         };
       } catch (error) {
-        // 4. FAILURE: Backend returned 401 (Expired/Invalid) or a Network Error (Server down)
         console.warn("Token validation failed or server is offline. Clearing session.");
-        // Clear all local storage data, forcing a login screen redirect
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        token.value = null;
-        user.value = null;
-        isAuthenticated.value = false;
+        logout();
       } finally{
         loading.value = false;
       }
@@ -65,12 +56,10 @@ export function useAuth() {
 async function login(username: string, password: string): Promise<{ success: boolean; role?: string; error?:string;}> {
   try{
     //Call Spring Boot Endpoint
-    const response = await api.post('/auth/login', {
+    const data: any = await api.post('/auth/login', {
       email: username,
       password: password
     });
-    // Extract data)
-    const data = response.data;
     // Update State
     token.value = data.token;
     user.value = { username: data.userName, email: data.email, role: data.role };
@@ -78,18 +67,9 @@ async function login(username: string, password: string): Promise<{ success: boo
     // Save to Local Storage
     localStorage.setItem("token", data.token);
     localStorage.setItem("user",JSON.stringify(user.value));
-
-    return {success: true, role: data.role};
+    return {success: true, role: user.value.role};
   } catch (err: any){
-      // Priority 1: Check if the custom error message is in the response data
-      const customMessage = err.response?.data?.message;
-      // Priority 2: Fallback to the generic error message
-      const fallbackMessage = err.message;
-      return { 
-        success: false, 
-        // Return the custom message if available, otherwise fallback
-        error: customMessage || fallbackMessage || "Login failed" 
-      };
+      return {success: false};
   }
   }
 

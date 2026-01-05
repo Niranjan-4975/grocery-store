@@ -10,6 +10,7 @@ import '@mdi/font/css/materialdesignicons.css'
 import '@mdi/font/css/materialdesignicons.css'
 import IconButton from "./components/common/IconButton.vue";
 import { useAuth } from './composables/useAuth';
+import { createPinia } from 'pinia';
 
 const vuetify = createVuetify({
   icons:{
@@ -19,7 +20,8 @@ const vuetify = createVuetify({
   directives,
 })
 const app = createApp(App);
+const pinia = createPinia();
 useAuth().initAuth();
 app.component('IconButton', IconButton);
-app.use(router).use(vuetify).mount('#app')
+app.use(router).use(vuetify).use(pinia).mount('#app')
 

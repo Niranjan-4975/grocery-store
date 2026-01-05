@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import api from '../../axios';
+import { useNotify } from '../../composables/useNotify';
 
+// Notify Composable
+const { notify} = useNotify();
 // --- Data Structures ---
 type ProductStatus = 'ACTIVE' | 'INACTIVE' | 'DELETED' | 'SUSPENDED';
 interface Product {
@@ -13,7 +16,7 @@ interface Product {
   stock: number;
   status: ProductStatus;
   imageUrl: string;
-  featured: boolean; // ✅ Added to Interface
+  featured: boolean;
 }
 
 const products = ref<Product[]>([]);
@@ -44,15 +47,15 @@ async function fetchProducts(){
   if(loading.value) return;
   loading.value = true;
   try{
-      const response = await api.get(`/admin/products`, {
+      const response: any = await api.get(`/admin/products`, {
           params: {
               page: page.value - 1,
               size: itemsPerPage.value,
               search: search.value
           }
       });
-      products.value = response.data.content;
-      totalItems.value = response.data.totalElements;
+      products.value = response.content;
+      totalItems.value = response.totalElements;
     } catch (error) {
       console.error("Error fetching products:", error);
     } finally {
@@ -74,14 +77,14 @@ watch(search, (val) => {
 
 async function fetchCategories(){
   try {
-        const response = await api.get(`/admin/categories`);
-        categories.value = response.data.content.map((c: any) => ({
-                title: c.name,
-                value: c.id,
-            }));
-    } catch (error) {
-        console.error("Error fetching categories:", error);
-    }
+    const response: any = await api.get(`/admin/categories`);
+      categories.value = response.content.map((c: any) => ({
+      title: c.name,
+      value: c.id,
+    }));
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+  }
 }
 
 function openAddDialog() {
@@ -105,8 +108,7 @@ function openEditDialog(product: any) {
 
 async function saveProduct() {
   if (!productForm.value.name || !productForm.value.categoryId) {
-      alert("Name and Category are required.");
-      return;
+    return notify.warning('Please fill in all required fields.');
   }
   let savedProduct: Product | null = null;
   const isUpdating = isEdit.value && productForm.value.id;
@@ -118,7 +120,7 @@ async function saveProduct() {
     stock: productForm.value.stock,
     categoryId: productForm.value.categoryId,
     status: productForm.value.status,
-    featured: productForm.value.featured, // ✅ Send to backend
+    featured: productForm.value.featured,
   };
   try {
     if (isUpdating) {
@@ -136,7 +138,7 @@ async function saveProduct() {
     dialog.value = false;
     await fetchProducts();     
   } catch (error: any) {
-    alert(`Failed to save product: ${error.response?.data?.message || 'Check console.'}`);
+    console.error("Error saving product:", error);
   }
 }
 
@@ -152,7 +154,7 @@ function openPreview() {
     } else if (productForm.value.imageUrl) {
         currentImagePreview.value = `${import.meta.env.VITE_IMAGE_API_URL}${productForm.value.imageUrl}`;
     } else {
-        alert("No image selected to preview.");
+        notify.warning("No image selected to preview.");
         return;
     }
     showPreviewDialog.value = true;
@@ -170,13 +172,17 @@ function handleFileChange(event: Event){
 }
 
 async function deleteProduct(product: any) {
-    if (!confirm(`Are you sure you want to delete product: ${product.name}?`)) return;
-    try {
-        await api.delete(`/admin/products/${product.id}`);
-        await fetchProducts();
-    } catch (error) {
-        alert("Failed to delete product.");
-    }
+  const confirm = await notify.confirm(
+    "Delete Product",
+    `Are you sure you want to delete the product "${product.name}"? This action cannot be undone.`,
+  );
+  if (!confirm) return;
+  try {
+    await api.delete(`/admin/products/${product.id}`);
+    await fetchProducts();
+  } catch (error) {
+    console.error("Error deleting product:", error);
+  }
 }
 
 onMounted(() => {

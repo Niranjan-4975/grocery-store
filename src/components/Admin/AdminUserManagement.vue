@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import api from '../../axios';
+import { useNotify } from '../../composables/useNotify';
+
+// notify composable
+const { notify } = useNotify();
    
 // --- State ---
 const users = ref<any[]>([]);
@@ -48,7 +52,7 @@ function getStatusColor(status: string) {
 async function fetchUsers() {
   loading.value = true;
   try {
-    const response = await api.get('/admin/getusers', {
+    const response: any = await api.get('/admin/getusers', {
       params: {
         page: page.value - 1,
         size: itemsPerPage.value,
@@ -56,10 +60,10 @@ async function fetchUsers() {
         sort: 'fullName,asc' 
       }
     });
-    users.value = response.data.content;
-    totalUsers.value = response.data.totalElements;
+    users.value = response.content;
+    totalUsers.value = response.totalElements;
   } catch (error){
-    console.error("Error fetching users", error);
+    return { success: false, message: "Failed to fetch users" };
   } finally {
     loading.value = false;
   }
@@ -84,17 +88,19 @@ async function toggleStatus(user: any) {
     const isActivating = user.accountStatus !== 'ACTIVE';
     const newStatus = isActivating ? 'ACTIVE' : 'INACTIVE';
     const actionVerb = isActivating ? 'Activate' : 'Deactivate';
+    const confirm = await notify.confirm(
+      "Account Status Change",
+      `Are you sure you want to ${actionVerb} this user?`
+    );
 
-    if(!confirm(`Are you sure you want to ${actionVerb} this user?`)) return;
-
+    if(!confirm) return;
     try {
         await api.patch(`/admin/users/${user.id}`, 
             { accountStatus: newStatus } 
         );
         user.accountStatus = newStatus;
-        alert(`User updated to ${newStatus}`);
     } catch (error) {
-        alert("Failed to update status");
+        console.error(error);
     }
 }
 
@@ -113,38 +119,35 @@ async function updateRole() {
         await api.patch(`/admin/users/${selectedUser.value.id}`,
             { roles: [selectedRole.value] }
         );
-        alert("Role Updated Successfully");
         roleDialog.value = false;
         fetchUsers();
     } catch (error) {
-        alert("Failed to update role");
+        console.error(error);
     }
 }
 
 // 4. Create User (All DTO Fields Included)
 async function handleCreateUser() {
     if (!newUser.value.email || !newUser.value.fullName || !newUser.value.password) {
-        alert("Name, Email and Password are required!");
-        return;
+      return notify.warning("Name, Email and Password are required!");
     }
     try {
-        const payload = { 
-            fullName: newUser.value.fullName,
-            email: newUser.value.email,
-            password: newUser.value.password,
-            mobile: newUser.value.mobile,
-            addressLine: newUser.value.addressLine,
-            city: newUser.value.city,
-            pinCode: newUser.value.pinCode,
-            roles: [newUser.value.role] 
-        };
-        await api.post('/admin/create-user', payload); 
-        alert("User created successfully!");
-        createUserDialog.value = false;
-        newUser.value = { fullName: '', email: '', password: '', mobile: '', addressLine: '', city: '', pinCode: '', role: 'ROLE_CUSTOMER' };
-        fetchUsers(); 
+      const payload = { 
+        fullName: newUser.value.fullName,
+        email: newUser.value.email,
+        password: newUser.value.password,
+        mobile: newUser.value.mobile,
+        addressLine: newUser.value.addressLine,
+        city: newUser.value.city,
+        pinCode: newUser.value.pinCode,
+        roles: [newUser.value.role] 
+      };
+      await api.post('/admin/create-user', payload); 
+      createUserDialog.value = false;
+      newUser.value = { fullName: '', email: '', password: '', mobile: '', addressLine: '', city: '', pinCode: '', role: 'ROLE_CUSTOMER' };
+      fetchUsers(); 
     } catch (error: any) {
-        alert("Creation Failed: " + (error.response?.data?.message || "Check backend logs"));
+      console.error(error);
     }
 }
 
@@ -154,8 +157,8 @@ async function viewPurchaseHistory(user: any) {
     loadingOrders.value = true;
     userOrders.value = [];
     try {
-        const response = await api.get(`/admin/orders/user/${user.id}`);
-        userOrders.value = response.data;
+        const response: any = await api.get(`/admin/orders/user/${user.id}`);
+        userOrders.value = response;
     } catch (error) {
         alert("Failed to fetch order history");
     } finally {

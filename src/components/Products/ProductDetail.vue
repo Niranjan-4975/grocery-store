@@ -28,16 +28,15 @@ async function fetchProductDetail() {
   const productId = route.params.id;
   try {
     // 1. Fetch current product detail
-    const response = await api.get(`/products/getProducts/${productId}`);
-    product.value = response.data;
+    const response: any = await api.get(`/products/getProducts/${productId}`);
+    product.value = response;
     
     // 2. Fetch recommendations based on category
     if (product.value && product.value.category) {
       fetchRecommendedProducts();
     }
   } catch (error) {
-    console.error("Error fetching product detail:", error);
-    product.value = null;
+    return { success: false };
   } finally {
     loading.value = false;
   }
@@ -46,18 +45,17 @@ async function fetchProductDetail() {
 async function fetchRecommendedProducts() {
   if (!product.value || !product.value.category) return;
   try {
-    const response = await api.get(`/products/getProducts`, {
+    const response: any = await api.get(`/products/getProducts`, {
       params: { 
-        // ✅ Name search ki jagah ID use karo, ye 100% accurate results dega
         categoryId: product.value.category.id,
         size: 8 
       }
     });
-    const allItems = response.data.content || response.data;
+    const allItems = response.content;
     // Current product ko hata do list se
     recommended.value = allItems.filter((p: Product) => p.id !== product.value?.id);
   } catch (error) {
-    console.error("Error fetching recommended products:", error);
+    return { success: false };
   }
 }
 // --- Helpers ---
@@ -94,7 +92,6 @@ watch(() => route.params.id, fetchProductDetail);
 
     <div v-else-if="product">
       <v-btn variant="text" prepend-icon="mdi-arrow-left" @click="goBack" class="mb-4">Back</v-btn>
-
       <v-row>
         <v-col cols="12" md="5">
           <v-img 
@@ -104,21 +101,17 @@ watch(() => route.params.id, fetchProductDetail);
             cover
           ></v-img>
         </v-col>
-
         <v-col cols="12" md="7" class="pl-md-8">
           <h1 class="text-h4 font-weight-bold mb-2">{{ product.name }}</h1>
           <v-chip color="primary" size="small" variant="tonal" class="mb-4">
             {{ product.category?.name || 'General' }}
           </v-chip>
-          
           <div class="text-h3 font-weight-black text-primary mb-6">
             ₹{{ product.price?.toLocaleString('en-IN') }}
           </div>
-          
           <p class="text-body-1 text-grey-darken-1 mb-8">
             {{ product.description || 'No description available for this product.' }}
           </p>
-
           <div class="cart-action-section border-t pt-6">
             <div v-if="cartItem(product)" class="d-flex align-center gap-4 mb-4">
               <v-btn size="large" color="red" icon elevation="2" @click="removeFromCart(product)">

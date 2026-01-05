@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import api from '../../axios';
+import { useNotify } from '../../composables/useNotify';
 
+// Notify
+const { notify } = useNotify();
 // --- State ---
 const stats = ref<any>({
   lowStockProducts: [],
@@ -27,9 +30,9 @@ async function loadReportData(days = '7', start = '', end = '') {
     const res = await api.get(`/admin/dashboard/stats`, {
       params: { range: days, startDate: start, endDate: end }
     });
-    stats.value = res.data;
+    stats.value = res;
   } catch (error) {
-    console.error("Failed to load report data", error);
+    console.error("Error fetching report data:", error);
   } finally {
     loading.value = false;
   }
@@ -66,7 +69,7 @@ async function downloadPDF() {
       },
       responseType: 'blob',
     });
-
+    if (response.data) notify.success("PDF report generated successfully.");
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -81,7 +84,7 @@ async function downloadPDF() {
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   } catch (error) {
-    alert("Error generating full report PDF. Ensure the backend ReportService is running.");
+    console.error("Error downloading PDF:", error);
   }
 }
 </script>

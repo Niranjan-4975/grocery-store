@@ -67,10 +67,12 @@
 <script setup lang="ts">
 import { ref, onMounted, inject } from "vue";
 import api from "../../axios";
+import { useNotify } from "../../composables/useNotify";
 
 // Update orders ref to be empty initially
 const orders = ref<any[]>([]);
 const loading = ref(false);
+const { notify } = useNotify();
 
 // Inject cart function for reordering
 const addToCart = inject("addToCart") as any;
@@ -78,10 +80,10 @@ const addToCart = inject("addToCart") as any;
 async function fetchOrders() {
   loading.value = true;
   try {
-    const response = await api.get(`/orders/my-orders`);
-    orders.value = response.data;
+    const response: any = await api.get(`/orders/my-orders`);
+    orders.value = response;
   } catch (error) {
-    console.error("Error fetching orders:", error);
+    return { success: false };
   } finally {
     loading.value = false;
   }
@@ -103,7 +105,7 @@ const reorder = (order: any) => {
       addToCart(productToCart);
     }
   });
-  alert(`Added items from Order #${order.id} to your cart!`);
+  notify.success(`Added items from Order #${order.id} to your cart!`);
 };
 
 //Status color mapping

@@ -22,14 +22,14 @@ async function fetchHomeData() {
   loading.value = true;
   try {
     // 1. Featured Products
-    const featuredRes = await api.get("/products/featured");
-    featuredProducts.value = featuredRes.data;
+    const featuredRes: any = await api.get("/products/featured");
+    featuredProducts.value = featuredRes;
 
     // 2. All Products
-    const productsRes = await api.get("/products/getProducts");
-    products.value = productsRes.data.content || productsRes.data;
+    const productsRes: any = await api.get("/products/getProducts");
+    products.value = productsRes.content;
   } catch (error) {
-    console.error("Error loading products:", error);
+    return { success: false};
   } finally {
     loading.value = false;
   }

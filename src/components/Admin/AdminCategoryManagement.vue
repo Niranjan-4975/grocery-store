@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import api from '../../axios';
+import { useNotify } from '../../composables/useNotify';
 
 
 type CategoryStatus = 'ACTIVE' | 'INACTIVE';
@@ -12,6 +13,8 @@ interface Category {
   status: CategoryStatus;
 }
 
+// --- Composables ---
+const {notify } = useNotify();
 // --- State ---
 const categories = ref<Category[]>([]);
 const loading = ref(false);
@@ -32,31 +35,24 @@ const form = ref<Category>({
 });
 
 // --- API Functions ---
-async function fetchCategories(options: any = {}) {
-  // ✅ 1. Check if page is NaN, if yes use 1.
-  const currentPage = options.page !== undefined ? options.page : (page.value - 1);
-  const pageSize = options.itemsPerPage || itemsPerPage.value;
-
-  // Stop if page is invalid
-  if (isNaN(currentPage) || currentPage < 0) return;
+async function fetchCategories() {
   loading.value = true;
   try {
-    const response = await api.get(`/admin/categories`, {
+    const response: any = await api.get(`/admin/categories`, {
       params: {
-        page: currentPage,
-        size: pageSize,
+        page: page.value - 1,
+        size: itemsPerPage.value+1,
         search: search.value
       }
     });
-    categories.value = response.data.content;
-    totalItems.value = response.data.totalElements;
+    categories.value = response.content;
+    totalItems.value = response.totalElements;
   } catch (error) {
-    console.error("Error fetching categories", error);
-    alert("Failed to load categories");
   } finally {
     loading.value = false;
   }
 }
+// --- Watchers ---
 let debounceTimer: any = null;
 watch(search, (val) => {
   clearTimeout(debounceTimer);
@@ -85,8 +81,7 @@ function openEditDialog(category: Category) {
 
 async function saveCategory() {
   if (!form.value.name.trim()) {
-    alert("Category name is required.");
-    return;
+    return notify.warning("Category name is required!");
   }
   const payload = {
     name: form.value.name,
@@ -102,17 +97,21 @@ async function saveCategory() {
     dialog.value = false;
     await fetchCategories();
   } catch (error: any) {
-    alert(`Error saving category: ${error.response?.data?.message || "Operation failed."}`);
+    console.error(error);
   }
 }
 
 async function deleteCategory(category: Category) {
-  if (!confirm(`Are you sure you want to delete category: ${category.name}?`)) return;
+  const ok = await notify.confirm(
+    "Delete Category",
+    `Are you sure you want to delete the category "${category.name}"? This action cannot be undone.`,
+  );
+  if (!ok) return;
   try {
     await api.delete(`/admin/categories/${category.id}`);
     await fetchCategories();
   } catch (error: any) {
-    alert(`Failed to delete: ${error.response?.data?.message || "Operation failed."}`);
+    console.error(error);
   }
 }
 

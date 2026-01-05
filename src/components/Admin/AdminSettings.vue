@@ -36,11 +36,11 @@ function applyTheme(isDark: boolean, color: string) {
 
 async function loadSettings() {
     try {
-        const res = await api.get(`/admin/settings`,);
-        if (res.data) {
-            settings.value = { ...settings.value, ...res.data };
-            settings.value.selectedPaymentMethods = res.data.paymentMethods || [];
-            settings.value.selectedDeliveryOptions = res.data.deliveryOptions || [];
+        const response: any = await api.get(`/admin/settings`,);
+        if (response) {
+            settings.value = { ...settings.value, ...response };
+            settings.value.selectedPaymentMethods = response.paymentMethods || [];
+            settings.value.selectedDeliveryOptions = response.deliveryOptions || [];
             
             // Initial theme apply
             applyTheme(settings.value.darkMode, settings.value.primaryColor);
@@ -58,8 +58,7 @@ async function saveSettings() {
         };
         await api.put(`/admin/settings`, payload,);
         applyTheme(settings.value.darkMode, settings.value.primaryColor);
-        alert('Settings & Theme Applied Globally!');
-    } catch (error) { alert('Failed to save settings'); }
+    } catch (error) { console.error }
     finally { loading.value = false; }
 }
 
