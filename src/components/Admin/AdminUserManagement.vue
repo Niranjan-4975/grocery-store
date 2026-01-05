@@ -178,7 +178,7 @@ const headers = [
   { title: 'Email', key: 'email' },
   { title: 'Role', key: 'roles', sortable: false },
   { title: 'Status', key: 'accountStatus' },
-  { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const }
 ];
 </script>
 
@@ -207,7 +207,7 @@ const headers = [
     <v-card elevation="1">
       <v-data-table-server
         v-model:page="page" v-model:items-per-page="itemsPerPage" :headers="headers" 
-        :items="users" :items-length="totalUsers"
+        :items="users" :items-length="totalUsers" :items-per-page-options="[10, 25, 50, 100]"
         :loading="loading" @update:options="fetchUsers" hover>
         <template #item.roles="{ item }">
           <v-chip color="blue-lighten-1" text-color="blue-darken-4" size="x-small" class="mr-1 font-weight-bold" v-for="role in item.roles" :key="role">

@@ -231,12 +231,12 @@ function getImageUrl(url: string) {
         :headers="[
           { title: 'Image', key: 'imageUrl', sortable: false },
           { title: 'Name', key: 'name' },
-          { title: 'Featured', key: 'featured', align: 'center' },
+          { title: 'Featured', key: 'featured', align: 'center' as const },
           { title: 'Category', key: 'category.name' },
           { title: 'Price', key: 'price' },
           { title: 'Stock', key: 'stock' },
           { title: 'Status', key: 'status' },
-          { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+          { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const}
         ]"
       >
         <template #item.featured="{ item }">
