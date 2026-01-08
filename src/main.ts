@@ -21,7 +21,7 @@ const vuetify = createVuetify({
 })
 const app = createApp(App);
 const pinia = createPinia();
-useAuth().initAuth();
 app.component('IconButton', IconButton);
-app.use(router).use(vuetify).use(pinia).mount('#app')
+app.use(pinia).use(router).use(vuetify).mount('#app')
+useAuth().initAuth();
 
