@@ -155,7 +155,7 @@ const headers = [
 
     <v-card elevation="1">
       <v-data-table-server v-model="selected" v-model:page="page" v-model:items-per-page="itemsPerPage"
-        :items-length="totalOrders" :headers="headers"
+        :items-length="totalOrders" :headers="headers" :items-per-page-options="[10, 25, 50, 100]"
         :items="orders" :loading="loading"
         @update:options="fetchOrders" show-select hover
       >

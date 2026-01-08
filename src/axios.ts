@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useToastStore } from './stores/toastStore';
+import { useAuth } from './composables/useAuth';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_BASE_API_URL,
@@ -28,8 +29,12 @@ api.interceptors.response.use(
     },
     (error) => {
         const toastStore = useToastStore();
-        const errorMessage = error.response?.data?.message || 'Something went wrong';
-        toastStore.showToast(errorMessage, 'error');
+        if (error.response && error.response?.status === 401) {
+            toastStore.showToast('Session expired. Please log in again.', 'error');
+            const { logout } = useAuth();
+            logout();
+            window.location.href = '/login';
+        }
         return Promise.reject(error);
     }
 );

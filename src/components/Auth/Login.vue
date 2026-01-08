@@ -43,6 +43,8 @@ async function handleLogin() {
       console.log("Role checked -- customer")
       router.push("/home").catch(()=>{});
     }
+  } else {
+    notify.error("Invalid username or password.");
   }
   isSubmitting.value = false;
 }

@@ -142,7 +142,7 @@ onMounted(fetchCategories);
 
     <v-card elevation="1">
       <v-data-table-server v-model:page="page" v-model:items-per-page="itemsPerPage"
-        :items="categories" :items-length="totalItems"
+        :items="categories" :items-length="totalItems" :items-per-page-options="[10, 25, 50, 100]"
         hover @update:options="fetchCategories"
         :loading="loading"
         :headers="[
