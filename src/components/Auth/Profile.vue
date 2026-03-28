@@ -75,10 +75,11 @@
 import { ref, computed, onMounted} from "vue";
 import { useAuth } from "../../composables/useAuth";
 import api from "../../axios";
+import { useNotify } from "../../composables/useNotify";
 
 const loading = ref(true);
 const saving = ref(false);
-
+const { notify } = useNotify();
 // State
 const userName = ref("");
 const userEmail = ref("");
@@ -99,21 +100,27 @@ const editedPincode = ref("");
 const userInitials = computed(() =>
   userName.value ? userName.value.split(" ").map((n) => n[0]).join("").toUpperCase(): "U"
 );
-
 //1. Fetch Profile (GET /user/me)
 onMounted(async () => {
   try {
     const response: any = await api.get("/users/me");
-    userName.value = response.fullName;
-    userEmail.value = response.email;
-    userPhone.value = response.mobile;
-    userAddress.value = response.addressLine;
-    userCity.value = response.city || "";
-    userPincode.value = response.pinCode || ""
+    const user = response.data || response; // ApiResponse wrapper handling
+    userName.value = user.fullName;
+    userEmail.value = user.email;
+    userPhone.value = user.mobile;
+    // ✅ Naya Logic: Addresses list se default uthao
+    if (user.addresses && user.addresses.length > 0) {
+      const addr = user.addresses[0]; // Backend se filter hokar sirf default wala hi aa raha hai
+      userAddress.value = addr.flatHouseNo + (addr.area ? ", " + addr.area : "");
+      userCity.value = addr.city;
+      userPincode.value = addr.zipCode;
+    } else {
+      userAddress.value = "No address set";
+    }
   } catch (error) {
-      console.error("Fetch Error", error);
+    console.error("Fetch Error", error);
   } finally {
-      loading.value = false;
+    loading.value = false;
   }
 });
 
@@ -125,21 +132,26 @@ const saveEdit = async () => {
       fullName: editedName.value,
       email: editedEmail.value,
       mobile: editedPhone.value,
-      addressLine: editedAddress.value,
+      // ✅ Nayi table structure ke liye fields
+      addressLine: editedAddress.value, 
       city: editedCity.value,
       pinCode: editedPincode.value 
     };
+    
     await api.put("/users/update-profile", payload);
-    // Update UI immediately
+    
+    // UI Update logic
     userName.value = editedName.value;
     userEmail.value = editedEmail.value;
     userPhone.value = editedPhone.value;
     userAddress.value = editedAddress.value;
     userCity.value = editedCity.value;
     userPincode.value = editedPincode.value;
+    
     editDialog.value = false;
+    notify.success("Profile & Default Address updated!");
   } catch (error) {
-    return { success: false};
+    notify.error("Update failed");
   } finally {
     saving.value = false;
   }

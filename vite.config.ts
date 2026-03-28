@@ -9,4 +9,7 @@ export default defineConfig({
     vue(),
     vuetify({ autoImport: true }),
   ],
+  define: {
+    global: 'window',
+  }
 })

@@ -1,13 +1,34 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, provide } from "vue";
-import { RouterView} from "vue-router";
+import { ref, computed, onMounted, onUnmounted, provide, watch} from "vue";
+import { RouterView, useRouter} from "vue-router";
 import IconButton from "./IconButton.vue";
 import { useAuth } from "../../composables/useAuth";
+import api from "../../axios";
 
-// Auth
+// Constants and state
 const { logout, loading, user} = useAuth();
- //need to replace real user name later in from auth details
-
+const router = useRouter();
+const searchModel = ref(null);
+const searchQuery = ref("");
+const suggestions = ref<Product[]>([]);
+// Logo click handler
+function goHome() {
+  router.push("/home");
+}
+// Global search
+watch(searchQuery, async (newVal) => {
+  if (newVal && newVal.length > 1) {
+    const res: any = await api.get(`/products/getProducts?q=${newVal}`);
+    suggestions.value = res.content;  }
+});
+function handleSearch() {
+  if (searchQuery.value) {
+    router.push({ path: "/product", query: { q: searchQuery.value } });
+  }
+}
+function onSuggestionSelect(value: any) {
+  if (value) router.push({ name: 'ProductDetail', params: { id: value} });
+}
 const userInitials = computed(()=>{
   if(!user.value?.username) return null;
   return user.value.username
@@ -91,14 +112,27 @@ function handleLogout() {
   <v-app>
     <!-- Loading screen -->
     <div v-if="loading" class="loading-screen">Loading...</div>
-
     <!-- App content -->
     <template v-else>
-      <v-app-bar app color="primary" dark>
-        <IconButton icon="mdi-menu" tooltip="Menu" color="white" @click="toggleDrawer" />
-        <v-app-bar-title>Grocery Store</v-app-bar-title>
-        <v-spacer></v-spacer>
-
+      <v-app-bar app color="white" dark elevation="2">
+        <IconButton icon="mdi-menu" tooltip="Menu" color="black" @click="toggleDrawer" />
+        <v-app-bar-title class="cursor-pointer font-weight-bold d-none d-sm-flex" 
+         @click="goHome()" style="min-width: 150px;"
+        >Grocery Store
+        </v-app-bar-title>
+        <v-autocomplete
+          v-model="searchModel" v-model:search="searchQuery" :items="suggestions"
+          item-title="name" item-value="id" prepend-inner-icon="mdi-magnify"
+          placeholder="Search products (e.g. Milk, Apple)..."
+          variant="solo-filled" flat hide-details density="compact"
+          class="mx-4 search-bar" 
+          :style="isMobile ? 'max-width: 150px;' : 'max-width: 600px;'"
+          @keyup.enter="handleSearch" @update:model-value="onSuggestionSelect"
+        >
+          <template v-slot:item="{props, item}">
+            <v-list-item v-bind="props" :title="item.raw.name" :subtitle="item.raw.category.name"></v-list-item>
+          </template>
+        </v-autocomplete>
         <!-- Desktop nav -->
         <div v-if="!isMobile">
           <v-btn to="/home" text :class="{ 'active-link': $route.path === '/home' }">Home</v-btn>
@@ -108,7 +142,7 @@ function handleLogout() {
         <!-- Cart menu -->
         <v-menu v-model="cartDropdown" :close-on-content-click="false" offset-y bottom>
           <template #activator="{ props }">
-            <IconButton v-bind="props" icon="mdi-cart" :badge="totalItems" tooltip="My Cart" color="white" />
+            <IconButton v-bind="props" icon="mdi-cart" :badge="totalItems" tooltip="My Cart" color="black" />
           </template>
           <v-card style="width: 350px;">
             <v-list>
@@ -220,5 +254,12 @@ function handleLogout() {
 .active-link {
   font-weight: bold;
   text-decoration: solid;
+}
+/* Search bar ko thoda sundar banane ke liye */
+.search-bar .v-field__input {
+  padding-top: 10 !important;
+}
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

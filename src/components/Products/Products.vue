@@ -1,6 +1,18 @@
 <script setup lang="ts">
-import { inject, ref, computed, onMounted } from "vue";
+import {ref, computed, onMounted, onUnmounted, watch} from "vue";
 import api from "../../axios";
+import { useSocket } from "../../composables/useSocket";
+import { useRoute } from "vue-router";
+import ProductCard from "../common/ProductCard.vue";
+
+const route = useRoute();
+const { onStockUpdate } = useSocket();
+let stopListening: (() => void) | null = null;
+// Search sync
+const searchQuery = ref("");
+watch(() => route.query.q, (newVal) => {
+  searchQuery.value = (newVal as string) || "";
+}, { immediate: true });
 
 interface Product {
   id: number;
@@ -9,8 +21,12 @@ interface Product {
   imageUrl: string;
   category: { name: string };
   quantity?: number;
+  stock: number;
 }
 
+function getProductsByCategory(catName: string) {
+  return products.value.filter(p => p.category?.name === catName);
+}
 // Sample product list
 const products = ref<Product[]>([]);
 const loading = ref(false);
@@ -29,36 +45,28 @@ async function fetchProducts() {
 }
 
 onMounted(() => {
+  if (route.query.q) {
+    search.value = route.query.q as string;
+  }
   fetchProducts();
   fetchCategories();
+  // ✅ Register listener
+  stopListening = onStockUpdate((updates) => {
+    console.log("New stock update received:", updates);
+    updates.forEach((u: any) => {
+      // Products list mein dhundo
+      const p = products.value.find(item => item.id === u.productId);
+      if (p) {
+        p.stock = u.newStock; // UI turant update hogi!
+      }
+    });
+  })
 });
-// Inject cart functions
-const cart = inject("cart") as any;
-const addToCart = inject("addToCart") as any;
-const removeFromCart = inject("removeFromCart") as any;
-const removeAll = inject("removeAll") as any;
-
-// Cart helpers
-function cartItem(product: Product) {
-  return cart.value.find((p: Product) => p.id === product.id);
-}
-
-function increase(product: Product) {
-  addToCart(product);
-}
-
-function decrease(product: Product) {
-  removeFromCart(product);
-}
-
-function remove(product: Product) {
-  removeAll(product);
-}
-
+onUnmounted(() => {
+  if (stopListening) stopListening();
+});
 // Filters
 const search = ref("");
-const selectedCategory = ref("All");
-
 // Available categories
 const categories = ref<string[]>(["All"]);
 
@@ -73,125 +81,78 @@ async function fetchCategories() {
   }
 }
 
-// Computed filtered products
+// ✅ Filter Logic updated to use route query
 const filteredProducts = computed(() => {
-  return products.value.filter((product) => {
-    const matchesCategory =
-      selectedCategory.value === "All" || 
-      (product.category && product.category.name === selectedCategory.value);
-    const matchesSearch =
-      product.name.toLowerCase().includes(search.value.toLowerCase());
-    return matchesCategory && matchesSearch;
+  return products.value.filter((p) => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.value.toLowerCase());
+    return matchesSearch;
   });
 });
-
-function getImageUrl(url: string) {
-  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
-}
 </script>
 
 <template>
   <div class="products-container">
     <v-progress-linear v-if="loading" indeterminate color="primary"></v-progress-linear>
-    <h2>Products</h2>
-    <!-- Filters -->
-    <div class="filters">
-      <v-text-field
-        v-model="search"
-        label="Search Products"
-        prepend-inner-icon="mdi-magnify"
-        clearable
-      />
-      <v-select
-        v-model="selectedCategory"
-        :items="categories"
-        label="Category"
-      />
-    </div>
 
-    <!-- Products Grid -->
-    <div class="product-grid">
-      <div class="product-card" v-for="product in filteredProducts" :key="product.id">
-        <v-img
-          :src="getImageUrl(product.imageUrl)"
-          height="150"
-          cover
-          class="product-image rounded-lg mb-3"
-          @click="$router.push({name:'ProductDetail', params: {id: product.id}})"
-        >
-          <template v-slot:placeholder>
-            <v-row class="fill-height ma-0" align="center" justify="center">
-              <v-progress-circular indeterminate color="grey lighten-5"></v-progress-circular>
-            </v-row>
-          </template>
-        </v-img>
-        <h3 class="cursor-pointer" @click="$router.push({name:'ProductDetail', params: {id: product.id}})">
-          {{ product.name }}
-        </h3>
-        <p class="text-primary font-weight-bold">₹{{ product.price }}</p>
-        <p class="category-label">{{ product.category?.name || 'Uncategorized' }}</p>
-        <div v-if="cartItem(product)" class="cart-controls">
-          <v-btn size="small" color="red" icon @click="decrease(product)">
-            <v-icon>mdi-minus</v-icon>
-          </v-btn>
-          <span>{{ cartItem(product).quantity }}</span>
-          <v-btn size="small" color="green" icon @click="increase(product)">
-            <v-icon>mdi-plus</v-icon>
-          </v-btn>
-          <v-btn size="small" icon color="error" @click="remove(product)">
-            <v-icon>mdi-delete</v-icon>
-          </v-btn>
-        </div>
-        <v-btn v-else color="primary" @click="addToCart(product)">
-          Add to Cart
-        </v-btn>
+    <template v-if="searchQuery">
+      <div class="px-4 d-flex align-center mb-4">
+        <v-btn icon="mdi-arrow-left" variant="text" @click="$router.push('/product')"></v-btn>
+        <h2 class="ml-2">Results for "{{ searchQuery }}"</h2>
       </div>
-    </div>
+      <div class="product-grid px-4">
+        <ProductCard v-for="p in filteredProducts" :key="p.id" :product="p" />
+      </div>
+    </template>
+
+    <template v-else>
+      <div v-for="cat in categories.filter(c => c !== 'All')" :key="cat" class="category-section mb-8">
+        <div class="d-flex align-center justify-space-between px-4 mb-2">
+          <h2 class="text-h6 font-weight-bold">{{ cat }}</h2>
+          <v-btn variant="text" density="compact" color="primary">View All</v-btn>
+        </div>
+        
+        <div class="horizontal-scroll-wrapper">
+          <div class="horizontal-scroll-content">
+            <div class="scroll-item" v-for="product in getProductsByCategory(cat)" :key="product.id">
+               <ProductCard :product="product" /> </div>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
-
 <style scoped>
-.products-container {
-  padding: 16px;
+.horizontal-scroll-wrapper {
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 10px 0;
+  scrollbar-width: none; /* Firefox */
 }
-
-/* Filters */
-.filters {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-/* Product Grid */
+/* Scroller CSS remains same */
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
   gap: 16px;
 }
-
-/* Product Card */
-.product-card {
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 12px;
-  text-align: center;
+.horizontal-scroll-wrapper::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
-.product-image {
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
-}
-.cart-controls {
+.horizontal-scroll-content {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin: 8px 0;
+  gap: 16px;
+  padding: 0 16px;
 }
-.category-label {
-  font-size: 0.85rem;
-  color: #555;
-  margin-bottom: 8px;
+.scroll-item {
+  flex: 0 0 180px; /* Card width fix */
+}
+.product-card-mini {
+  border: 1px solid #eee;
+  border-radius: 12px;
+  background: white;
+  transition: transform 0.2s;
+}
+.product-card-mini:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 </style>

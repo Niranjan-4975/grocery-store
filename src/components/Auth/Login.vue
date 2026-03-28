@@ -155,7 +155,7 @@ async function handleSignup() {
           <v-form @submit.prevent="handleSignup">
             <v-text-field
               v-model="signupUsername"
-              label="Username"
+              label="Full Name"
               prepend-inner-icon="mdi-account"
               outlined dense
               :error="Boolean(signupErrors.username)"
@@ -170,15 +170,7 @@ async function handleSignup() {
               :error="Boolean(signupErrors.email)"
               :error-messages="signupErrors.email ? [signupErrors.email] : []"
             />
-            <v-text-field
-              v-model="signupPassword"
-              type="password"
-              label="Password"
-              prepend-inner-icon="mdi-lock"
-              outlined dense
-              :error="Boolean(signupErrors.password)"
-              :error-messages="signupErrors.password ? [signupErrors.password] : []"
-            />
+            
             <v-text-field
               v-model="signupMobile"
               label="Mobile No"
@@ -214,6 +206,15 @@ async function handleSignup() {
               :error-messages="signupErrors.pin ? [signupErrors.pin] : []"
             />
             <v-text-field
+              v-model="signupPassword"
+              type="password"
+              label="Password"
+              prepend-inner-icon="mdi-lock"
+              outlined dense
+              :error="Boolean(signupErrors.password)"
+              :error-messages="signupErrors.password ? [signupErrors.password] : []"
+            />
+            <v-text-field
               v-model="signupConfirm"
               type="password"
               label="Confirm Password"
@@ -222,7 +223,7 @@ async function handleSignup() {
               :error="Boolean(signupErrors.confirm)"
               :error-messages="signupErrors.confirm ? [signupErrors.confirm] : []"
             />
-            <v-btn type="submit" color="success" block class="mt-4">Sign Up</v-btn>
+            <v-btn type="submit" color="primary" block class="mt-4">Sign Up</v-btn>
           </v-form>
         </v-window-item>
       </v-window>

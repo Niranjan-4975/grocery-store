@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import { RouterView } from "vue-router";
 import { useAuth } from "./composables/useAuth";
 import { useTheme } from "vuetify";
 import { useToastStore } from "./stores/toastStore";
+import { useSocket } from "./composables/useSocket";
 
+const { connect, disconnect }= useSocket();
 const { loading, initAuth } = useAuth();
 const theme = useTheme();
 const toastStore = useToastStore();
@@ -17,14 +19,14 @@ const getIcon = (type: string) => {
     default:        return 'mdi-information-outline';
   }
 };
-onMounted(()=>{
+onMounted(async()=>{
   const savedTheme = localStorage.getItem('app_theme');
-  if (savedTheme) {
-    theme.global.name.value = savedTheme;
-  } else {
-    theme.global.name.value = 'light';
-  }
-  initAuth();
+  theme.global.name.value = savedTheme || 'light';
+  await initAuth();
+  connect();
+});
+onUnmounted(()=>{
+  disconnect();
 });
 </script>
 
