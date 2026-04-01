@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import api from '../../axios';
+import AppTable from '../common/AppTable.vue';
 
 // --- Reactive State ---
 const orders = ref<Order[]>([]);
@@ -152,39 +153,36 @@ const headers = [
         </v-card>
       </v-col>
     </v-row>
-
-    <v-card elevation="1">
-      <v-data-table-server v-model="selected" v-model:page="page" v-model:items-per-page="itemsPerPage"
-        :items-length="totalOrders" :headers="headers" :items-per-page-options="[10, 25, 50, 100]"
-        :items="orders" :loading="loading"
-        @update:options="fetchOrders" show-select hover
-      >
-        <template #item.totalAmount="{ item }">
-          ₹{{ item.totalAmount?.toFixed(2) }}
-        </template>
-
-        <template #item.status="{ item }">
-          <v-chip :color="statusColor(item.status)" size="small" variant="flat">{{ item.status }}</v-chip>
-        </template>
-
-        <template #item.actions="{ item }">
-          <div class="d-flex justify-end">
-            <v-tooltip text="Update Status" location="top">
-              <template v-slot:activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-pencil" variant="text" size="small" color="primary" @click="openOrderDialog(item)"></v-btn>
-              </template>
-            </v-tooltip>
-
-            <v-tooltip text="Export Invoice (PDF)" location="top">
-              <template v-slot:activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-file-pdf-box" variant="text" size="small" color="green"></v-btn>
-              </template>
-            </v-tooltip>
-          </div>
-        </template>
-      </v-data-table-server>
-    </v-card>
-
+    <app-table
+      :headers="headers"
+      :items="orders"
+      :total-items="totalOrders"
+      :loading="loading"
+      v-model="selected"
+      v-model:page="page"
+      v-model:items-per-page="itemsPerPage"
+      @update:options="fetchOrders"
+      status-key="status"
+      show-select hover
+    >
+      <template #item.totalAmount="{ item }">
+        ₹{{ item.totalAmount?.toFixed(2) }}
+      </template>
+      <template #item.actions="{ item }">
+        <div class="d-flex justify-end">
+          <v-tooltip text="Update Status" location="top">
+            <template v-slot:activator="{ props }">
+              <v-btn v-bind="props" icon="mdi-pencil" variant="text" size="small" color="primary" @click="openOrderDialog(item)"></v-btn>
+            </template>
+          </v-tooltip>
+          <v-tooltip text="Export Invoice (PDF)" location="top">
+            <template v-slot:activator="{ props }">
+              <v-btn v-bind="props" icon="mdi-file-pdf-box" variant="text" size="small" color="green"></v-btn>
+            </template>
+          </v-tooltip>
+        </div>
+      </template>
+    </app-table>
     <v-dialog v-model="dialog" max-width="500px">
       <v-card rounded="lg">
         <v-card-title class="bg-primary text-white">Update Order #{{ selectedOrder?.id }}</v-card-title>

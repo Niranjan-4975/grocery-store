@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue';
 import api from '../../axios';
 import { useNotify } from '../../composables/useNotify';
+import AppTable from '../common/AppTable.vue';
 
 // Notify Composable
 const { notify} = useNotify();
@@ -193,6 +194,16 @@ onMounted(() => {
 function getImageUrl(url: string) {
   return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
 }
+const headers = [
+  { title: 'ID', key: 'id' },
+  { title: 'Image', key: 'imageUrl' }, 
+  { title: 'Featured', key: 'featured'},
+  { title: 'Name', key: 'name' },
+  { title: 'Category', key: 'category.name'},
+  { title: 'Stock', key: 'stock' },
+  { title: 'Price', key: 'price'},
+  { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const }
+];
 </script>
 
 <template>
@@ -218,61 +229,34 @@ function getImageUrl(url: string) {
       </v-col>
     </v-row>
 
-    <v-card elevation="1">
-      <v-data-table-server
-        v-model:page="page"
-        v-model:items-per-page="itemsPerPage"
-        :items="products"
-        :items-length="totalItems"
-        :loading="loading"
-        :items-per-page-options="[10,25,50,100]"
-        @update:options="fetchProducts"
-        hover
-        :headers="[
-          { title: 'Image', key: 'imageUrl', sortable: false },
-          { title: 'Name', key: 'name' },
-          { title: 'Featured', key: 'featured', align: 'center' as const },
-          { title: 'Category', key: 'category.name' },
-          { title: 'Price', key: 'price' },
-          { title: 'Stock', key: 'stock' },
-          { title: 'Status', key: 'status' },
-          { title: 'Actions', key: 'actions', sortable: false, align: 'end' as const}
-        ]"
-      >
-        <template #item.featured="{ item }">
-          <v-icon :color="item.featured ? 'amber' : 'grey-lighten-1'">
-            {{ item.featured ? 'mdi-star' : 'mdi-star-outline' }}
-          </v-icon>
-        </template>
-
-        <template #item.imageUrl="{item}">
-          <v-img 
-            :src="getImageUrl(item.imageUrl)"
-            height="40" 
-            width="40" 
-            cover 
-            class="my-1 rounded border"
-          ></v-img>
-        </template>
-        
-        <template #item.status="{ item }">
-          <v-chip 
-            :color="item.status === 'ACTIVE' ? 'green' : 'red'" 
-            size="small" 
-            variant="flat"
-          >
-            {{ item.status }}
-          </v-chip>
-        </template>
-
-        <template #item.actions="{ item }">
-          <div class="d-flex justify-end">
-            <v-btn icon="mdi-pencil" variant="text" size="small" color="primary" @click="openEditDialog(item)"></v-btn>
-            <v-btn icon="mdi-delete" variant="text" size="small" color="red" @click="deleteProduct(item)"></v-btn>
-          </div>
-        </template>
-      </v-data-table-server>
-    </v-card>
+    <app-table
+      v-model:page="page"
+      v-model:items-per-page="itemsPerPage"
+      :headers="headers"
+      :items="products"
+      :total-items="totalItems"
+      :loading="loading"
+      @update:options="fetchProducts"
+    >
+      <template #item.category.name="{ item }">
+        {{ item.category?.name || 'N/A' }}
+      </template>
+      <template #item.price="{ item }">
+        <span class="font-weight-bold text-success">₹{{ item.price }}</span>
+      </template>
+      <template #actions="{ item }">
+        <v-tooltip text="Edit Product" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon="mdi-pencil" variant="text" size="small" color="primary" @click="openEditDialog(item)"></v-btn>
+          </template>
+        </v-tooltip>
+        <v-tooltip text="Delete Product" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon="mdi-delete" variant="text" size="small" color="red" @click="deleteProduct(item)"></v-btn>
+          </template>
+        </v-tooltip>
+      </template>
+    </app-table>
 
     <v-dialog v-model="dialog" max-width="600px">
       <v-card rounded="lg">
