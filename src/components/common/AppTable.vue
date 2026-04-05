@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps({
   headers: Array as any,

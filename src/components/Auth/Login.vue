@@ -4,14 +4,21 @@ import { useRouter } from "vue-router";
 import { useAuth} from "../../composables/useAuth";
 import api from "../../axios";
 import { useNotify } from "../../composables/useNotify";
+import { useI18n } from 'vue-i18n';
 
 
+const { locale } = useI18n();
 const router = useRouter();
 const { login } = useAuth();
 const { notify } = useNotify();
 const activeTab = ref("login");
 const isSubmitting = ref(false);
 
+// ---------------- Language Switcher ----------------
+function changeLanguage(lang: string) {
+  locale.value = lang;
+  localStorage.setItem('lang', lang);
+}
 // ---------------- Login form state ----------------
 const loginUsername = ref("");
 const loginPassword = ref("");
@@ -38,7 +45,8 @@ async function handleLogin() {
     console.log("handleLogin called")
     const roleString = String(result.role);
     if (roleString.includes("ROLE_ADMIN") || roleString.includes("[ROLE_ADMIN]")) {
-    router.push("/admin").catch(()=>{});
+      changeLanguage('en'); // Admins see English by default
+      router.push("/admin").catch(()=>{});
     }else{
       console.log("Role checked -- customer")
       router.push("/home").catch(()=>{});
@@ -107,7 +115,9 @@ async function handleSignup() {
     //4. Sucess
     console.log("Signup Response: ", response);
     activeTab.value = "login";
+    notify.success("Registration successful! Please login.");
   }catch (error: any){
+    notify.error(error.response?.data?.message || "Registration failed. Please try again.");
     return { success: false};
   }finally {
     // 6. Stop Loading
@@ -118,20 +128,34 @@ async function handleSignup() {
 
 <template>
   <div class="auth-page">
+    <div class="lang-switch-wrapper">
+      <v-menu offset-y>
+        <template #activator="{ props }">
+          <v-btn v-bind="props" variant="elevated" rounded="pill" color="white" prepend-icon="mdi-translate">
+            {{ locale === 'mr' ? 'मराठी' : locale === 'hi' ? 'हिंदी' : 'English' }}
+          </v-btn>
+        </template>
+        <v-list density="compact">
+          <v-list-item @click="changeLanguage('en')">English</v-list-item>
+          <v-list-item @click="changeLanguage('mr')">मराठी</v-list-item>
+          <v-list-item @click="changeLanguage('hi')">हिंदी</v-list-item>
+        </v-list>
+      </v-menu>
+    </div>
     <v-card class="auth-card" elevation="6">
       <v-tabs v-model="activeTab" grow>
-        <v-tab value="login">Login</v-tab>
-        <v-tab value="signup">Sign Up</v-tab>
+        <v-tab value="login">{{ $t('login.title') }}</v-tab>
+        <v-tab value="signup">{{ $t('login.sign_up') }}</v-tab>
       </v-tabs>
       <v-divider></v-divider>
       <v-window v-model="activeTab" class="pa-6">
         <!-- Login -->
         <v-window-item value="login">
-          <h2 class="text-h5 mb-4">Welcome Back</h2>
+          <h2 class="text-h5 mb-4">{{ $t('login.welcome_back') }}</h2>
           <v-form @submit.prevent="handleLogin">
             <v-text-field
               v-model="loginUsername"
-              label="Email"
+              :label="$t('login.email_label')"
               prepend-inner-icon="mdi-account"
               outlined dense
               :error="Boolean(loginErrors.username)"
@@ -140,22 +164,22 @@ async function handleSignup() {
             <v-text-field
               v-model="loginPassword"
               type="password"
-              label="Password"
+              :label="$t('login.password_label')"
               prepend-inner-icon="mdi-lock"
               outlined dense
               :error="Boolean(loginErrors.password)"
               :error-messages="loginErrors.password && !loginErrors.username? [loginErrors.password] : []"
             />
-            <v-btn type="submit" color="primary" block class="mt-4">Login</v-btn>
+            <v-btn type="submit" color="primary" block class="mt-4">{{ $t('login.login_btn') }}</v-btn>
           </v-form>
         </v-window-item>
         <!-- Signup -->
         <v-window-item value="signup">
-          <h2 class="text-h5 mb-4">Create Account</h2>
+          <h2 class="text-h5 mb-4">{{ $t('login.sign_up') }}</h2>
           <v-form @submit.prevent="handleSignup">
             <v-text-field
               v-model="signupUsername"
-              label="Full Name"
+              :label="$t('login.username_label')"
               prepend-inner-icon="mdi-account"
               outlined dense
               :error="Boolean(signupErrors.username)"
@@ -163,7 +187,7 @@ async function handleSignup() {
             />
             <v-text-field
               v-model="signupEmail"
-              label="Email"
+              :label="$t('login.email_label')"
               type="email"
               prepend-inner-icon="mdi-email"
               outlined dense
@@ -173,7 +197,7 @@ async function handleSignup() {
             
             <v-text-field
               v-model="signupMobile"
-              label="Mobile No"
+              :label="$t('login.mobile_label')"
               prepend-inner-icon="mdi-cellphone"
               outlined dense
               type="tel"
@@ -182,7 +206,7 @@ async function handleSignup() {
             />
             <v-text-field
               v-model="signupAddress"
-              label="Address Line"
+              :label="$t('login.address_label')"
               prepend-inner-icon="mdi-map-marker"
               outlined dense
               :error="Boolean(signupErrors.address)"
@@ -190,7 +214,7 @@ async function handleSignup() {
             />
             <v-text-field
               v-model="signupCity"
-              label="City"
+              :label="$t('login.city_label')"
               prepend-inner-icon="mdi-city"
               outlined dense
               :error="Boolean(signupErrors.city)"
@@ -198,7 +222,7 @@ async function handleSignup() {
             />
             <v-text-field
               v-model="signupPin"
-              label="Pincode"
+              :label="$t('login.pincode_label')"
               prepend-inner-icon="mdi-map-marker-radius"
               outlined dense
               type="number"
@@ -208,7 +232,7 @@ async function handleSignup() {
             <v-text-field
               v-model="signupPassword"
               type="password"
-              label="Password"
+              :label="$t('login.password_label')"
               prepend-inner-icon="mdi-lock"
               outlined dense
               :error="Boolean(signupErrors.password)"
@@ -217,13 +241,13 @@ async function handleSignup() {
             <v-text-field
               v-model="signupConfirm"
               type="password"
-              label="Confirm Password"
+              :label="$t('login.confirm_label')"
               prepend-inner-icon="mdi-lock-check"
               outlined dense
               :error="Boolean(signupErrors.confirm)"
               :error-messages="signupErrors.confirm ? [signupErrors.confirm] : []"
             />
-            <v-btn type="submit" color="primary" block class="mt-4">Sign Up</v-btn>
+            <v-btn type="submit" color="primary" block class="mt-4">{{ $t('login.signup_btn') }}</v-btn>
           </v-form>
         </v-window-item>
       </v-window>
@@ -240,7 +264,7 @@ async function handleSignup() {
         <v-card-actions>
           <v-spacer></v-spacer>
             <v-btn color="primary" text @click="showStatusDialog = false">
-            Close
+            {{ $t('close') }}
             </v-btn>
         </v-card-actions>
       </v-card>
@@ -256,6 +280,11 @@ async function handleSignup() {
   justify-content: center;
   background: linear-gradient(135deg, #74ebd5 0%, #ACB6E5 100%);
   padding: 16px;
+}
+.lang-switch-wrapper {
+  position: absolute;
+  top: 20px;
+  right: 20px;
 }
 .auth-card {
   width: 100%;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted, watch} from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import api from "../../axios";
 import { useSocket } from "../../composables/useSocket";
 import { useRoute } from "vue-router";
@@ -8,96 +8,90 @@ import ProductCard from "../common/ProductCard.vue";
 const route = useRoute();
 const { onStockUpdate } = useSocket();
 let stopListening: (() => void) | null = null;
-// Search sync
+
+// --- State ---
+const products = ref<any[]>([]);
+const categories = ref<string[]>(["All"]);
+const selectedCategoryId = ref(0);
+const loading = ref(false);
+
+// ✅ Missing Pagination Refs (Add these)
+const page = ref(1);
+const itemsPerPage = ref(20); // Default items
 const searchQuery = ref("");
-watch(() => route.query.q, (newVal) => {
-  searchQuery.value = (newVal as string) || "";
-}, { immediate: true });
 
-interface Product {
-  id: number;
-  name: string;
-  price: number;
-  imageUrl: string;
-  category: { name: string };
-  quantity?: number;
-  stock: number;
-}
-
+// --- Methods ---
 function getProductsByCategory(catName: string) {
   return products.value.filter(p => p.category?.name === catName);
 }
-// Sample product list
-const products = ref<Product[]>([]);
-const loading = ref(false);
 
-// Fetch products from API (replace with real API endpoint)
 async function fetchProducts() {
   loading.value = true;
   try {
-    const response: any = await api.get("/products/getProducts");
+    const response: any = await api.get("/products/getProducts", {
+      params: { 
+        search: searchQuery.value,
+        categoryId: selectedCategoryId.value !== 0 ? selectedCategoryId.value : null,
+        page: page.value - 1, 
+        size: itemsPerPage.value
+      }
+    });
     products.value = response.content;
   } catch (error) {
-    return { success: false};
+    console.error("Error fetching products:", error);
   } finally {
     loading.value = false;
   }
 }
 
-onMounted(() => {
-  if (route.query.q) {
-    search.value = route.query.q as string;
-  }
-  fetchProducts();
-  fetchCategories();
-  // ✅ Register listener
-  stopListening = onStockUpdate((updates) => {
-    console.log("New stock update received:", updates);
-    updates.forEach((u: any) => {
-      // Products list mein dhundo
-      const p = products.value.find(item => item.id === u.productId);
-      if (p) {
-        p.stock = u.newStock; // UI turant update hogi!
-      }
-    });
-  })
-});
-onUnmounted(() => {
-  if (stopListening) stopListening();
-});
-// Filters
-const search = ref("");
-// Available categories
-const categories = ref<string[]>(["All"]);
-
-// Populate categories based on products
 async function fetchCategories() {
-  try{
+  try {
     const response: any = await api.get("/categories");
     const backendCats = response.map((c: any) => c.name);
     categories.value = ["All", ...backendCats];
-  } catch (error) {
-    return { success: false};
-  }
+  } catch (error) {}
 }
 
-// ✅ Filter Logic updated to use route query
+// ✅ Watch for route query changes and trigger fetch
+watch(() => route.query.q, (newVal) => {
+  searchQuery.value = (newVal as string) || "";
+  fetchProducts(); // Jab bhi search badle, API call karo
+}, { immediate: true });
+
+// ✅ Filter Logic (Local fallback)
 const filteredProducts = computed(() => {
-  return products.value.filter((p) => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.value.toLowerCase());
-    return matchesSearch;
+  if (!searchQuery.value) return products.value;
+  return products.value.filter((p) => 
+    p.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+  );
+});
+
+onMounted(() => {
+  // fetchProducts watch mein handle ho raha hai immediate: true se
+  fetchCategories();
+  stopListening = onStockUpdate((updates) => {
+    updates.forEach((u: any) => {
+      const p = products.value.find(item => item.id === u.productId);
+      if (p) p.stock = u.newStock;
+    });
   });
 });
+
+onUnmounted(() => { if (stopListening) stopListening(); });
 </script>
 
 <template>
   <div class="products-container">
-    <v-progress-linear v-if="loading" indeterminate color="primary"></v-progress-linear>
+    <v-progress-linear v-if="loading" indeterminate color="primary" fixed top>{{ $t('nav.loading') }}</v-progress-linear>
 
     <template v-if="searchQuery">
-      <div class="px-4 d-flex align-center mb-4">
+      <div class="px-4 d-flex align-center mb-4 pt-4">
         <v-btn icon="mdi-arrow-left" variant="text" @click="$router.push('/product')"></v-btn>
-        <h2 class="ml-2">Results for "{{ searchQuery }}"</h2>
+        <h2 class="text-h6 ml-2 font-weight-bold">{{ $t('product.Results for {query}', { query: searchQuery }) }}</h2>
+      </div>
+      <div v-if="filteredProducts.length === 0 && !loading" class="pa-10 text-center">
+        <v-icon size="64" color="grey">mdi-magnify-minus</v-icon>
+        <p class="text-grey">{{ $t('product.No products found matching your search.') }}</p>
       </div>
       <div class="product-grid px-4">
         <ProductCard v-for="p in filteredProducts" :key="p.id" :product="p" />
@@ -105,54 +99,37 @@ const filteredProducts = computed(() => {
     </template>
 
     <template v-else>
-      <div v-for="cat in categories.filter(c => c !== 'All')" :key="cat" class="category-section mb-8">
+      <div v-for="cat in categories.filter(c => c !== 'All')" :key="cat" class="category-section mb-8 pt-4">
         <div class="d-flex align-center justify-space-between px-4 mb-2">
-          <h2 class="text-h6 font-weight-bold">{{ cat }}</h2>
-          <v-btn variant="text" density="compact" color="primary">View All</v-btn>
+          <h2 class="text-subtitle-1 font-weight-bold">{{ cat }}</h2>
+          <v-btn variant="text" density="compact" color="primary" class="text-none">{{ $t('product.View All') }}</v-btn>
         </div>
         
         <div class="horizontal-scroll-wrapper">
           <div class="horizontal-scroll-content">
             <div class="scroll-item" v-for="product in getProductsByCategory(cat)" :key="product.id">
-               <ProductCard :product="product" /> </div>
+               <ProductCard :product="product" image-height="150" /> 
+            </div>
           </div>
         </div>
       </div>
     </template>
   </div>
 </template>
+
 <style scoped>
-.horizontal-scroll-wrapper {
-  overflow-x: auto;
-  white-space: nowrap;
-  padding: 10px 0;
-  scrollbar-width: none; /* Firefox */
+/* Scroller and Grid CSS */
+.horizontal-scroll-wrapper { overflow-x: auto; scrollbar-width: none; padding-bottom: 10px; }
+.horizontal-scroll-wrapper::-webkit-scrollbar { display: none; }
+.horizontal-scroll-content { display: flex; gap: 16px; padding: 0 16px; }
+.scroll-item { flex: 0 0 190px; }
+.product-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); 
+  gap: 16px; 
+  padding-bottom: 30px;
 }
-/* Scroller CSS remains same */
-.product-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-  gap: 16px;
-}
-.horizontal-scroll-wrapper::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
-}
-.horizontal-scroll-content {
-  display: flex;
-  gap: 16px;
-  padding: 0 16px;
-}
-.scroll-item {
-  flex: 0 0 180px; /* Card width fix */
-}
-.product-card-mini {
-  border: 1px solid #eee;
-  border-radius: 12px;
-  background: white;
-  transition: transform 0.2s;
-}
-.product-card-mini:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+@media (max-width: 600px) {
+  .product-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }
 </style>

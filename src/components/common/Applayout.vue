@@ -4,13 +4,34 @@ import { RouterView, useRouter} from "vue-router";
 import IconButton from "./IconButton.vue";
 import { useAuth } from "../../composables/useAuth";
 import api from "../../axios";
+import { useSpeechToText } from "../../composables/useSpeechToText";
+import { useI18n } from 'vue-i18n';
 
 // Constants and state
 const { logout, loading, user} = useAuth();
 const router = useRouter();
 const searchModel = ref(null);
 const searchQuery = ref("");
+const { locale, t } = useI18n();
 const suggestions = ref<Product[]>([]);
+// --- Speech to Text ---
+const { isListening, startListening } = useSpeechToText();
+// Language switcher
+function changeLanguage(lang: string) {
+  locale.value = lang;
+  localStorage.setItem('lang', lang);
+}
+//mic click handler
+const handleMicSearch = () => {
+    startListening((text) => {
+      searchQuery.value = text;
+      setTimeout(() => {
+        if (searchQuery.value) {
+          router.push({ path: "/product", query: { q: searchQuery.value } });
+        }
+      }, 500);
+    });
+  };
 // Logo click handler
 function goHome() {
   router.push("/home");
@@ -111,43 +132,56 @@ function handleLogout() {
 <template>
   <v-app>
     <!-- Loading screen -->
-    <div v-if="loading" class="loading-screen">Loading...</div>
+    <div v-if="loading" class="loading-screen">{{$t('nav.loading')}}</div>
     <!-- App content -->
     <template v-else>
       <v-app-bar app color="white" dark elevation="2">
-        <IconButton icon="mdi-menu" tooltip="Menu" color="black" @click="toggleDrawer" />
+        <IconButton icon="mdi-menu" tooltip="nav.menu" color="black" @click="toggleDrawer" />
         <v-app-bar-title class="cursor-pointer font-weight-bold d-none d-sm-flex" 
          @click="goHome()" style="min-width: 150px;"
-        >Grocery Store
+        >{{$t('nav.store_name')}}
         </v-app-bar-title>
         <v-autocomplete
           v-model="searchModel" v-model:search="searchQuery" :items="suggestions"
           item-title="name" item-value="id" prepend-inner-icon="mdi-magnify"
-          placeholder="Search products (e.g. Milk, Apple)..."
+          :append-inner-icon="isListening ? 'mdi-microphone-off' : 'mdi-microphone-outline'"
+          :placeholder="$t('search.placeholder')"
           variant="solo-filled" flat hide-details density="compact"
           class="mx-4 search-bar" 
           :style="isMobile ? 'max-width: 150px;' : 'max-width: 600px;'"
+          :loading="isListening" @click:append-inner="handleMicSearch"
           @keyup.enter="handleSearch" @update:model-value="onSuggestionSelect"
         >
           <template v-slot:item="{props, item}">
             <v-list-item v-bind="props" :title="item.raw.name" :subtitle="item.raw.category.name"></v-list-item>
           </template>
         </v-autocomplete>
+        <!-- Language switcher -->
+        <v-menu offset-y>
+          <template #activator="{ props }">
+            <v-btn v-bind="props" variant="text" icon="mdi-translate"></v-btn>
+          </template>
+          <v-list density="compact">
+            <v-list-item @click="changeLanguage('en')">English</v-list-item>
+            <v-list-item @click="changeLanguage('mr')">मराठी</v-list-item>
+            <v-list-item @click="changeLanguage('hi')">हिंदी</v-list-item>
+          </v-list>
+        </v-menu>
         <!-- Desktop nav -->
         <div v-if="!isMobile">
-          <v-btn to="/home" text :class="{ 'active-link': $route.path === '/home' }">Home</v-btn>
-          <v-btn to="/product" text :class="{ 'active-link': $route.path === '/product' }">Products</v-btn>
+          <v-btn to="/home" text :class="{ 'active-link': $route.path === '/home' }">{{ $t('nav.home') }}</v-btn>
+          <v-btn to="/product" text :class="{ 'active-link': $route.path === '/product' }">{{ $t('nav.products') }}</v-btn>
         </div>
 
         <!-- Cart menu -->
         <v-menu v-model="cartDropdown" :close-on-content-click="false" offset-y bottom>
           <template #activator="{ props }">
-            <IconButton v-bind="props" icon="mdi-cart" :badge="totalItems" tooltip="My Cart" color="black" />
+            <IconButton v-bind="props" icon="mdi-cart" :badge="totalItems" tooltip="cart.title" color="black" />
           </template>
           <v-card style="width: 350px;">
             <v-list>
               <v-list-item>
-                <v-list-item-title class="text-h6">Cart ({{ totalItems }})</v-list-item-title>
+                <v-list-item-title class="text-h6">{{$t('cart.title')}} ({{ totalItems }})</v-list-item-title>
               </v-list-item>
               <v-divider />
               <template v-if="cart.length">
@@ -163,23 +197,23 @@ function handleLogout() {
                     </v-list-item-subtitle>
                   </div>
                   <div class="d-flex align-center">
-                    <IconButton icon="mdi-minus"  size="small" tooltip="Remove one" color="red" @click="removeFromCart(item)" />
+                    <IconButton icon="mdi-minus"  size="small" tooltip="cart.remove_one" color="red" @click="removeFromCart(item)" />
                     <span class="mx-2">{{ item.quantity ?? 0 }}</span>
-                    <IconButton icon="mdi-plus" size="small" tooltip="Add one" color="green" @click="addToCart(item)" />
-                    <IconButton icon="mdi-delete" size="small" tooltip="Remove all" color="error" @click="removeAll(item)" />
+                    <IconButton icon="mdi-plus" size="small" tooltip="cart.add_one" color="green" @click="addToCart(item)" />
+                    <IconButton icon="mdi-delete" size="small" tooltip="cart.remove_all" color="error" @click="removeAll(item)" />
                   </div>
                 </v-list-item>
                 <v-divider />
                 <v-list-item>
-                  <v-list-item-title>Total: ₹{{ total }}</v-list-item-title>
+                  <v-list-item-title>{{ $t('cart.total') }}: ₹{{ total }}</v-list-item-title>
                 </v-list-item>
                 <v-list-item>
-                  <v-btn color="success" block @click.stop="() => {cartDropdown = false; $router.push('/checkout');}">Checkout</v-btn>
+                  <v-btn color="success" block @click.stop="() => {cartDropdown = false; $router.push('/checkout');}">{{ $t('cart.checkout') }}</v-btn>
                 </v-list-item>
               </template>
               <template v-else>
                 <v-list-item>
-                  <v-list-item-title class="text-center">🛒 Your cart is empty</v-list-item-title>
+                  <v-list-item-title class="text-center">{{ $t('cart.empty') }}</v-list-item-title>
                 </v-list-item>
               </template>
             </v-list>
@@ -190,7 +224,7 @@ function handleLogout() {
         <v-menu offset-y bottom transition="scale-transition">
           <template #activator="{props}">
             <div v-bind="props">
-              <IconButton v-if="!userInitials" icon="userInitials || mdi-account" tooltip="Profile" color="white"/>
+              <IconButton v-if="!userInitials" icon="userInitials || mdi-account" tooltip="nav.profile" color="white"/>
               <v-avatar v-else size="36" class="cursor-pointer" color="deep-purple accent-4">
                 <span class="white--text">{{ userInitials }}</span>
               </v-avatar>
@@ -199,15 +233,15 @@ function handleLogout() {
             <v-list>
               <!---My Profile-->
               <v-list-item @click="$router.push('profile')" prepend-icon="mdi-account">
-                <v-list-item-title>My Profile</v-list-item-title>
+                <v-list-item-title>{{ $t('nav.profile') }}</v-list-item-title>
               </v-list-item>
               <!---My Orders-->
               <v-list-item @click="$router.push('orderHistory')" prepend-icon="mdi-clipboard-text-clock">
-                <v-list-item-title>My Orders</v-list-item-title>
+                <v-list-item-title>{{ $t('nav.my_orders') }}</v-list-item-title>
               </v-list-item>
               <!---Logout--->
               <v-list-item @click="handleLogout" prepend-icon="mdi-logout">
-                <v-list-item-title>Logout</v-list-item-title>
+                <v-list-item-title>{{ $t('nav.logout') }}</v-list-item-title>
               </v-list-item>
             </v-list>
         </v-menu>
@@ -217,7 +251,7 @@ function handleLogout() {
       <!-- Desktop drawer -->
       <v-navigation-drawer app v-model="drawer" temporary v-if="!isMobile">
         <v-list dense>
-          <v-subheader>Categories</v-subheader>
+          <v-list-subheader>{{ $t('nav.categories') }}</v-list-subheader>
           <v-list-item v-for="(category, i) in categories" :key="i" :title="category" prepend-icon="mdi-food-apple" />
         </v-list>
       </v-navigation-drawer>
@@ -225,10 +259,10 @@ function handleLogout() {
       <!-- Mobile drawer -->
       <v-navigation-drawer v-model="drawer" app temporary v-if="isMobile">
         <v-list dense nav>
-          <v-list-item to="/home" title="Home" prepend-icon="mdi-home" @click="drawer = false"/>
-          <v-list-item to="/product" title="Products" prepend-icon="mdi-package-variant" @click="drawer = false"/>
+          <v-list-item to="/home" :title="$t('nav.home')" prepend-icon="mdi-home" @click="drawer = false"/>
+          <v-list-item to="/product" :title="$t('nav.products')" prepend-icon="mdi-package-variant" @click="drawer = false"/>
           <v-divider class="my-2" />
-          <v-subheader>Categories</v-subheader>
+          <v-list-subheader>{{ $t('nav.categories') }}</v-list-subheader>
           <v-list-item v-for="(category, i) in categories" :key="i" :title="category" prepend-icon="mdi-food-apple" />
         </v-list>
       </v-navigation-drawer>
@@ -261,5 +295,14 @@ function handleLogout() {
 }
 .cursor-pointer {
   cursor: pointer;
+}
+.v-field--loading .v-field__append-inner .v-icon {
+  color: #1867C0 !important;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+  100% { transform: scale(1); opacity: 1; }
 }
 </style>
