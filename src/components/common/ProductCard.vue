@@ -19,7 +19,9 @@ const cart = inject("cart") as any;
 const cartItem = computed(() => cart.value.find((p: any) => p.id === props.product.id));
 
 function getImageUrl(url: string) {
-  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
+  if (!url) return '/placeholder.png';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${import.meta.env.VITE_IMAGE_API_URL}${url}`;
 }
 
 const stockStatus = computed(() => {

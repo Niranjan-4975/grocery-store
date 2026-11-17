@@ -12,7 +12,7 @@ const { logout, loading, user} = useAuth();
 const router = useRouter();
 const searchModel = ref(null);
 const searchQuery = ref("");
-const { locale, t } = useI18n();
+const { locale } = useI18n();
 const suggestions = ref<Product[]>([]);
 // --- Speech to Text ---
 const { isListening, startListening } = useSpeechToText();

@@ -104,7 +104,9 @@ async function confirmOrder() {
 }
 
 function getImageUrl(url: string) {
-  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
+  if (!url) return '/placeholder.png';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${import.meta.env.VITE_IMAGE_API_URL}${url}`;
 }
 </script>
 
@@ -148,7 +150,7 @@ function getImageUrl(url: string) {
           
           <div v-if="!isAddingNew">
             <v-radio-group v-model="selectedAddressId" v-if="savedAddresses.length > 0" hide-details>
-              <v-hover v-for="addr in savedAddresses" :key="addr.id" v-slot="{ isHovering, props }">
+              <v-hover v-for="addr in savedAddresses" :key="addr.id" v-slot="{ props }">
                 <v-card v-bind="props" variant="outlined" 
                   :class="['mb-3 pa-3 transition-swing', selectedAddressId === addr.id ? 'border-primary bg-blue-lighten-5' : '']"
                   @click="selectedAddressId = addr.id"

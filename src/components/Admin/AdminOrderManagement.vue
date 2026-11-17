@@ -95,16 +95,7 @@ function openOrderDialog(order: Order) {
   dialog.value = true;
 }
 
-function statusColor(status: string) {
-  switch(status){
-    case "PENDING": return "orange";
-    case "PROCESSING": return "blue";
-    case "SHIPPED": return "indigo";
-    case "DELIVERED": return "green";
-    case "CANCELLED": return "red";
-    default: return "grey";
-  }
-}
+
 
 const headers = [
   { title: 'ID', key: 'id' },

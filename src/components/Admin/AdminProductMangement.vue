@@ -103,7 +103,7 @@ function openEditDialog(product: any) {
       categoryId: product.category ? product.category.id : product.categoryId
   }));
   fileToUpload.value = null;
-  previewUrl.value = product.imageUrl ? `${import.meta.env.VITE_IMAGE_API_URL}${product.imageUrl}` : ''; 
+  previewUrl.value = product.imageUrl ? getImageUrl(product.imageUrl) : ''; 
   dialog.value = true;
 }
 
@@ -111,7 +111,7 @@ async function saveProduct() {
   if (!productForm.value.name || !productForm.value.categoryId) {
     return notify.warning('Please fill in all required fields.');
   }
-  let savedProduct: Product | null = null;
+  let savedProduct: any = null;
   const isUpdating = isEdit.value && productForm.value.id;
   
   const jsonPayload = {
@@ -125,16 +125,17 @@ async function saveProduct() {
   };
   try {
     if (isUpdating) {
-      const response = await api.put(`/admin/products/${productForm.value.id}`, jsonPayload);
-      savedProduct = response.data;
+      const response: any = await api.put(`/admin/products/${productForm.value.id}`, jsonPayload);
+      savedProduct = response?.data || response;
     } else {
-      const response = await api.post(`/admin/products`, jsonPayload);
-      savedProduct = response.data;
+      const response: any = await api.post(`/admin/products`, jsonPayload);
+      savedProduct = response?.data || response;
     }
-    if (fileToUpload.value && savedProduct) {
+    const targetId = savedProduct?.id || productForm.value.id;
+    if (fileToUpload.value && targetId) {
       const formData = new FormData();
       formData.append('file', fileToUpload.value);
-      await api.post(`/admin/products/images/product/${savedProduct.id}`, formData);
+      await api.post(`/admin/products/images/product/${targetId}`, formData);
     }
     dialog.value = false;
     await fetchProducts();     
@@ -153,7 +154,7 @@ function openPreview() {
     if (fileToUpload.value) {
         currentImagePreview.value = previewUrl.value; 
     } else if (productForm.value.imageUrl) {
-        currentImagePreview.value = `${import.meta.env.VITE_IMAGE_API_URL}${productForm.value.imageUrl}`;
+        currentImagePreview.value = getImageUrl(productForm.value.imageUrl);
     } else {
         notify.warning("No image selected to preview.");
         return;
@@ -168,7 +169,7 @@ function handleFileChange(event: Event){
   if (file) {
       previewUrl.value = URL.createObjectURL(file);
   } else {
-      previewUrl.value = productForm.value.imageUrl ? `${import.meta.env.VITE_IMAGE_API_URL}${productForm.value.imageUrl}` : '';
+      previewUrl.value = productForm.value.imageUrl ? getImageUrl(productForm.value.imageUrl) : '';
   }
 }
 
@@ -192,7 +193,9 @@ onMounted(() => {
 });
 
 function getImageUrl(url: string) {
-  return url ? `${import.meta.env.VITE_IMAGE_API_URL}${url}` : '/placeholder.png';
+  if (!url) return '/placeholder.png';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${import.meta.env.VITE_IMAGE_API_URL}${url}`;
 }
 const headers = [
   { title: 'ID', key: 'id' },
