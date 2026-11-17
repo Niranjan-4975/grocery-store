@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue';
 import api from '../../axios';
 import { useNotify } from '../../composables/useNotify';
+import AppTable from '../common/AppTable.vue';
 
 // notify composable
 const { notify } = useNotify();
@@ -203,54 +204,40 @@ const headers = [
         ></v-text-field>
       </v-col>
     </v-row>
-
-    <v-card elevation="1">
-      <v-data-table-server
-        v-model:page="page" v-model:items-per-page="itemsPerPage" :headers="headers" 
-        :items="users" :items-length="totalUsers" :items-per-page-options="[10, 25, 50, 100]"
-        :loading="loading" @update:options="fetchUsers" hover>
-        <template #item.roles="{ item }">
-          <v-chip color="blue-lighten-1" text-color="blue-darken-4" size="x-small" class="mr-1 font-weight-bold" v-for="role in item.roles" :key="role">
-            {{ role.name || role }}
-          </v-chip>
-        </template>
-
-        <template #item.accountStatus="{ item }">
-          <v-chip :color="getStatusColor(item.accountStatus)" size="small" variant="flat">
-            {{ item.accountStatus }}
-          </v-chip>
-        </template>
-
-        <template #item.actions="{ item }">
-          <div class="d-flex justify-end">
-            <v-tooltip text="Change Role" location="top">
-              <template v-slot:activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-account-cog" variant="text" size="small" color="primary" @click="openRoleDialog(item)"></v-btn>
-              </template>
-            </v-tooltip>
-            <v-tooltip text="Purchase History" location="top">
-              <template v-slot:activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-history" variant="text" size="small" color="secondary" @click="viewPurchaseHistory(item)"></v-btn>
-              </template>
-            </v-tooltip>
-            <v-tooltip :text="item.accountStatus === 'ACTIVE' ? 'Deactivate' : 'Activate'" location="top">
-              <template v-slot:activator="{ props }">
-                <v-btn 
-                  v-bind="props" 
-                  :icon="item.accountStatus === 'ACTIVE' ? 'mdi-block-helper' : 'mdi-check-circle'" 
-                  variant="text" 
-                  size="small" 
-                  :color="item.accountStatus === 'ACTIVE' ? 'warning' : 'success'" 
-                  @click="toggleStatus(item)"
-                  :disabled="item.accountStatus === 'DELETED'"
-                ></v-btn>
-              </template>
-            </v-tooltip>
-          </div>
-        </template>
-      </v-data-table-server>
-    </v-card>
-
+    <AppTable
+      v-model:page="page"
+      v-model:items-per-page="itemsPerPage"
+      :headers="headers"
+      :items="users"
+      :total-items="totalUsers"
+      :loading="loading"
+      :status-key="getStatusColor('accountStatus')"
+      @update:options="fetchUsers"
+    >
+      <template #actions="{ item }">
+        <v-tooltip text="Change Role" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon="mdi-account-cog" variant="text" size="small" color="primary" @click="openRoleDialog(item)"></v-btn>
+          </template>
+        </v-tooltip>
+        <v-tooltip text="View Purchase History" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon="mdi-history" variant="text" size="small" color="secondary" @click="viewPurchaseHistory(item)"></v-btn>
+          </template>
+        </v-tooltip>
+        <v-tooltip text="Change Account Status" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" 
+              :icon="item.accountStatus === 'ACTIVE' ? 'mdi-block-helper' : 'mdi-check-circle'" 
+              variant="text" size="x-small"
+              :color="item.accountStatus === 'ACTIVE' ? 'warning' : 'success'" 
+              @click="toggleStatus(item)"
+            >
+            </v-btn>
+          </template>
+        </v-tooltip>
+      </template>
+    </AppTable>
     <v-dialog v-model="createUserDialog" max-width="700px" persistent>
       <v-card rounded="lg">
         <v-card-title class="bg-success text-white">Create New User</v-card-title>

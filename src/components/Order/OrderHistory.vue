@@ -3,18 +3,18 @@
     <v-row justify="center">
       <v-col cols="12" md="10" lg="8">
         <v-card elevation="3" rounded="xl" class="pa-4">
-          <v-card-title class="text-h6">My Order History</v-card-title>
+          <v-card-title class="text-h6">{{ $t('order_history.title') }}</v-card-title>
           <v-divider class="mb-4"></v-divider>
           <div v-if="loading" class="text-center py-10">
             <v-progress-circular indeterminate color="primary" size="48"></v-progress-circular>
-            <p class="mt-2 text-subtitle-1 text-grey">Loading your order history...</p>
+            <p class="mt-2 text-subtitle-1 text-grey">{{ $t('order_history.loading') }}</p>
           </div>
           <template v-else-if="orders.length">
             <v-expansion-panels>
               <v-expansion-panel v-for="order in orders" :key="order.id">
                 <v-expansion-panel-title>
                   <div class="d-flex justify-space-between w-100 align-center pr-4">
-                    <span class="font-weight-bold">Order #{{ order.id }}</span>
+                    <span class="font-weight-bold">{{ $t('order_history.order_id') }} {{ order.id }}</span>
                     <span>₹{{ order.totalAmount?.toFixed(2) }}</span>
                     <span class="text-caption text-grey">{{ formatDate(order.orderDate) }}</span>
                     <v-chip :color="statusColor(order.status)" size="small" class="ml-2">
@@ -39,11 +39,11 @@
                   <v-divider class="my-3"></v-divider>
                   <div class="d-flex justify-space-between align-center">
                     <div class="text-caption">
-                      <strong>Payment:</strong> {{ order.paymentMethod }} <br>
-                      <strong>Address:</strong> {{ order.shippingAddress }}
+                      <strong>{{ $t('order_history.payment_method') }}:</strong> {{ order.paymentMethod }} <br>
+                      <strong>{{ $t('order_history.shipping_address') }}:</strong> {{ order.shippingAddress }}
                     </div>
                     <v-btn color="primary" variant="tonal" size="small" @click="reorder(order)">
-                      Order Again
+                      {{ $t('order_history.reorder') }}
                     </v-btn>
                   </div>
                 </v-expansion-panel-text>
@@ -54,8 +54,8 @@
           <template v-else>
             <div class="text-center py-10">
               <v-icon size="64" color="grey-lighten-1">mdi-package-variant-closed</v-icon>
-              <p class="mt-4 text-h6 text-grey">You haven't placed any orders yet.</p>
-              <v-btn color="primary" class="mt-4" to="/home">Start Shopping</v-btn>
+              <p class="mt-4 text-h6 text-grey">{{ $t('order_history.no_orders') }}</p>
+              <v-btn color="primary" class="mt-4" to="/home">{{ $t('order_history.start_shopping') }}</v-btn>
             </div>
           </template>
         </v-card>
@@ -68,11 +68,23 @@
 import { ref, onMounted, inject } from "vue";
 import api from "../../axios";
 import { useNotify } from "../../composables/useNotify";
+import { useI18n } from 'vue-i18n';
+
 
 // Update orders ref to be empty initially
 const orders = ref<any[]>([]);
 const loading = ref(false);
 const { notify } = useNotify();
+// Initialize i18n
+const { locale } = useI18n();
+// Dynamic Date formatting based on locale
+const formatDate = (dateStr: string) => {
+  return new Date(dateStr).toLocaleDateString(locale.value, { // ✅ Use current locale
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
 
 // Inject cart function for reordering
 const addToCart = inject("addToCart") as any;
@@ -124,14 +136,5 @@ const statusColor = (status: string) =>{
     default:
       return "violet";
   }
-};
-
-//Format date
-const formatDate = (dateStr: string) =>{
-  return new Date(dateStr).toLocaleDateString(undefined,{
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
 };
 </script>

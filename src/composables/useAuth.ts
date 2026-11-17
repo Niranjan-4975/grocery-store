@@ -149,7 +149,9 @@ export function useAuth() {
     user.value = null;
     isAuthenticated.value = false;
     // ✅ central navigation after logout
-    router.push("/login").catch(() => {});
+    router.push("/login").then(() => {
+      window.location.reload();
+    }).catch(() => {});
   }
 
   return { isAuthenticated, user, token, loading, initAuth, login, logout };

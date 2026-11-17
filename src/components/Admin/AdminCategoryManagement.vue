@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from 'vue';
 import api from '../../axios';
 import { useNotify } from '../../composables/useNotify';
+import AppTable from '../common/AppTable.vue';
 
 
 type CategoryStatus = 'ACTIVE' | 'INACTIVE';
@@ -116,6 +117,13 @@ async function deleteCategory(category: Category) {
 }
 
 onMounted(fetchCategories);
+
+const headers = [
+          { title: 'Name', key: 'name' },
+          { title: 'Description', key: 'description' },
+          { title: 'Status', key: 'status' },
+          { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
+        ];
 </script>
 
 <template>
@@ -139,55 +147,27 @@ onMounted(fetchCategories);
         ></v-text-field>
       </v-col>
     </v-row>
-
-    <v-card elevation="1">
-      <v-data-table-server v-model:page="page" v-model:items-per-page="itemsPerPage"
-        :items="categories" :items-length="totalItems" :items-per-page-options="[10, 25, 50, 100]"
-        hover @update:options="fetchCategories"
-        :loading="loading"
-        :headers="[
-          { title: 'Name', key: 'name' },
-          { title: 'Description', key: 'description' },
-          { title: 'Status', key: 'status' },
-          { title: 'Actions', key: 'actions', sortable: false, align: 'end' }
-        ]"
-      >
-        <template #item.status="{ item }">
-          <v-chip :color="item.status === 'ACTIVE' ? 'green' : 'red'" size="small" variant="flat">
-            {{ item.status }}
-          </v-chip>
-        </template>
-
-        <template #item.actions="{ item }">
-          <v-tooltip text="Edit Category" location="top">
-            <template v-slot:activator="{ props }">
-              <v-btn 
-                v-bind="props" 
-                icon="mdi-pencil" 
-                variant="text" 
-                size="small" 
-                color="primary" 
-                @click="openEditDialog(item)"
-              ></v-btn>
-            </template>
-          </v-tooltip>
-
-          <v-tooltip text="Delete Category" location="top">
-            <template v-slot:activator="{ props }">
-              <v-btn 
-                v-bind="props" 
-                icon="mdi-delete" 
-                variant="text" 
-                size="small" 
-                color="red" 
-                @click="deleteCategory(item)"
-              ></v-btn>
-            </template>
-          </v-tooltip>
-        </template>
-      </v-data-table-server>
-    </v-card>
-
+    <app-table
+      :headers="headers"
+      :items="categories"
+      :total-items="totalItems"
+      :loading="loading"
+      v-model:page="page"
+      v-model:items-per-page="itemsPerPage"
+    >
+      <template #actions="{ item }">
+        <v-tooltip text="Edit Category" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon="mdi-pencil" variant="text" size="small" color="primary" @click="openEditDialog(item)"></v-btn>
+          </template>
+        </v-tooltip>
+        <v-tooltip text="Delete Category" location="top">
+          <template #activator="{ props }">
+            <v-btn v-bind="props" icon="mdi-delete" variant="text" size="small" color="red" @click="deleteCategory(item)"></v-btn>
+          </template>
+        </v-tooltip>
+      </template>
+    </app-table>
     <v-dialog v-model="dialog" max-width="500px">
       <v-card rounded="lg">
         <v-card-title class="bg-primary text-white">

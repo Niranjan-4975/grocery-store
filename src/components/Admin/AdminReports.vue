@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import api from '../../axios';
 import { useNotify } from '../../composables/useNotify';
+import AppTable from '../common/AppTable.vue';
 
 // Notify
 const { notify } = useNotify();
@@ -126,9 +127,10 @@ async function downloadPDF() {
             <v-icon start color="error">mdi-alert-circle</v-icon>
             Low Stock Inventory Report
           </v-card-title>
-          <v-data-table
+          <app-table
             :items="stats.lowStockProducts"
             :loading="loading"
+            :total-items="stats.lowStockProducts.length"
             :headers="[
               { title: 'Product Name', key: 'name' },
               { title: 'Category', key: 'category' },
@@ -147,7 +149,7 @@ async function downloadPDF() {
                 REPLENISH REQUIRED
               </v-chip>
             </template>
-          </v-data-table>
+          </app-table>
         </v-card>
       </v-col>
     </v-row>
@@ -159,13 +161,14 @@ async function downloadPDF() {
             <v-icon start color="success">mdi-trending-up</v-icon>
             Performance: Best Selling Products
           </v-card-title>
-          <v-data-table
+          <app-table
             :items="stats.bestSellers"
             :loading="loading"
+            :total-items="stats.bestSellers.length"
             :headers="[
               { title: 'Product Name', key: 'product' },
               { title: 'Total Quantity Sold', key: 'soldQuantity' },
-              { title: 'Sales Performance', key: 'performance', sortable: false },
+              { title: 'Sales Performance', key: 'performance', sortable: false }
             ]"
             hover
           >
@@ -182,7 +185,7 @@ async function downloadPDF() {
                 <span class="text-caption font-weight-bold">{{ item.soldQuantity }}</span>
               </div>
             </template>
-          </v-data-table>
+          </app-table>
         </v-card>          
       </v-col>
     </v-row>
