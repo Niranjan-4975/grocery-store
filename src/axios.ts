@@ -3,7 +3,7 @@ import { useToastStore } from './stores/toastStore';
 import { useAuth } from './composables/useAuth';
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_BASE_API_URL,
+    baseURL: import.meta.env.VITE_BASE_API_URL || '/api',
 });
 
 // 1. Request Interceptor (Token bhejne ke liye)

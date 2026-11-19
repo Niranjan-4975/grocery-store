@@ -9,17 +9,15 @@ export function useSocket() {
   function connect() {
     if (stompClient && stompClient.connected) return;
 
-    const envURL = import.meta.env.VITE_BASE_URL || 'http://localhost:8080/api';
+    const envURL = import.meta.env.VITE_BASE_API_URL || 'http://localhost:8080/api';
     const socket = new SockJS(`${envURL.replace('/api', '')}/ws-grocery`);
     stompClient = Stomp.over(socket);
-    stompClient.debug = () => {}; // Console clean rakhne ke liye
-
+    stompClient.debug = () => {};
     stompClient.connect({}, () => {
       console.log('🚀 Global WebSocket Connected');
       
       stompClient.subscribe('/topic/stock', (message: any) => {
         const updates = JSON.parse(message.body);
-        // ✅ Sabhi registered pages/components ko data bhej do
         stockListeners.forEach(callback => callback(updates));
       });
     }, (err: any) => {
@@ -28,10 +26,8 @@ export function useSocket() {
     });
   }
 
-  // ✅ Is function se koi bhi page update sun sakta hai
   function onStockUpdate(callback: (data: any) => void) {
     stockListeners.add(callback);
-    // Cleanup function: Jab component unmount ho toh listener hata do
     return () => stockListeners.delete(callback);
   }
 
