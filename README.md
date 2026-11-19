@@ -2,7 +2,9 @@
 
 A full-featured, modern **frontend** for an online Grocery Store application built with **Vue 3**, **Vuetify 3**, and **TypeScript**. It provides a smooth shopping experience for customers and a powerful dashboard for admins — with real-time notifications, multilingual support, voice search, dark mode, and much more.
 
----
+## Live Demo
+- Register your self as consumer and explore
+  **Public URL:** https://hp-headless.tail53b0ae.ts.net
 
 ## 📋 Table of Contents
 
